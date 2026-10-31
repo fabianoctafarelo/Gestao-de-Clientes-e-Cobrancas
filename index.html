@@ -180,7 +180,7 @@ function migBar(){
   el.innerHTML=(np+ns)?`<div class="card" style="border-color:#d97706"><b>Dados antigos encontrados neste navegador</b><div class="mut">${np} paciente(s) e ${ns} atendimento(s) estão guardados só aqui. Copie para o banco de dados para não perdê-los.</div><div class="btns"><button class="pri" data-a="migrar">Copiar para o banco de dados</button></div></div>`:'';
 }
 function render(){
-  const T=[['cob','Cobranças'],['atd','Atendimentos'],['pac','Pacientes'],['cfg','Ajustes']];
+  const T=[['cob','Cobranças'],['atd','Atendimentos'],['pac','Pacientes'],['cfg','Mensagem']];
   $('#nav').innerHTML=T.map(([k,n])=>`<button class="${k===tab?'on':''}" data-a="tab" data-id="${k}">${n}</button>`).join('');
   $('#app').innerHTML={cob:vCob,atd:vAtd,pac:vPac,cfg:vCfg}[tab]();migBar();
 }
