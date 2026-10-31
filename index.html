@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Fono · Pacientes e Cobranças</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<style>
+:root{--bg:#f6f7f9;--fg:#1c2330;--card:#fff;--mut:#667085;--acc:#0f766e;--onacc:#fff;--bd:#dfe4ea;--ok:#15803d;--bad:#b91c1c;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#12161c;--fg:#e8ecf2;--card:#1b2129;--mut:#9aa5b4;--acc:#2dd4bf;--onacc:#06201c;--bd:#2c3540;--ok:#4ade80;--bad:#f87171;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#12161c;--fg:#e8ecf2;--card:#1b2129;--mut:#9aa5b4;--acc:#2dd4bf;--onacc:#06201c;--bd:#2c3540;--ok:#4ade80;--bad:#f87171;color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:760px;margin:0 auto;padding:12px}
+h1{font-size:18px;margin:4px 0 10px}h2{font-size:15px;margin:18px 0 8px}
+nav{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px}
+button,input,select,textarea{font:inherit;color:inherit}
+button{border:1px solid var(--bd);background:var(--card);border-radius:8px;padding:7px 12px;cursor:pointer}
+button.on,button.pri{background:var(--acc);color:var(--onacc);border-color:var(--acc)}
+input,select,textarea{width:100%;box-sizing:border-box;border:1px solid var(--bd);background:var(--card);border-radius:8px;padding:8px}
+label{display:block;font-size:13px;color:var(--mut);margin:8px 0 3px}
+.chk{display:flex;gap:8px;align-items:center;color:var(--fg);font-size:14px}.chk input{width:auto}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:10px 12px;margin:8px 0}
+.top{display:flex;justify-content:space-between;gap:8px}
+a.btn{display:inline-block;border:1px solid var(--bd);border-radius:8px;padding:7px 12px;text-decoration:none;color:inherit}a.pri{background:var(--acc);color:var(--onacc);border-color:var(--acc)}
+details{margin-top:6px}
+.st{border:0;font-weight:600;color:#fff}.st.go{background:#16a34a}.st.done{background:#2563eb}
+#toast{position:fixed;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom,0px));background:var(--fg);color:var(--bg);padding:10px 12px;border-radius:10px;display:none;z-index:20}
+.err{border-color:var(--bad)!important}
+button:disabled{opacity:.5;cursor:not-allowed}
+.mut{color:var(--mut);font-size:13px}.btns{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;align-items:center}
+.btns input{width:auto}
+.tag{font-size:12px;border:1px solid var(--bd);border-radius:99px;padding:1px 8px;margin-left:4px}
+.tag.bad{color:var(--bad);border-color:var(--bad)}.tag.ok{color:var(--ok);border-color:var(--ok)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.sum{display:grid;grid-template-columns:1fr 1fr;gap:8px}.sum div{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:10px}.sum b{display:block;font-size:18px}
+textarea{min-height:90px}
+</style></head><body><main>
+<div class="top"><h1>Pacientes e Cobranças</h1><div><button id="lo" data-a="logout" style="display:none">Sair</button></div></div>
+<div id="st" class="mut"></div>
+<div id="mig"></div>
+<nav id="nav"></nav>
+<div id="app"></div>
+</main>
+<div id="toast"></div>
+<script>
+const K='fono_v1';
+// Cole aqui os dados do seu projeto Supabase (veja o LEIAME). Se deixar vazio, o site pede na primeira abertura.
+const SUPABASE_URL='';
+const SUPABASE_ANON_KEY='';
+const DEF='Olá, {responsavel}! Tudo bem? Segue a cobrança do atendimento de fonoaudiologia de {paciente}, realizado em {data}, no valor de {valor}. Obrigada!';
+let S={patients:[],sessions:[],tpl:DEF},db=null,ready=false,knownTpl=DEF;
+const known={patients:new Map(),sessions:new Map()};
+const $st=(m,bad)=>{const e=document.getElementById('st');if(e){e.textContent=m;e.style.color=bad?'var(--bad)':'';e.style.fontWeight=bad?'600':''}};
+const ok=()=>$st('Banco de dados conectado · salvo às '+new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}));
+let tt;const toast=m=>{const e=document.getElementById('toast');if(!e)return;e.textContent=m;e.style.display='block';clearTimeout(tt);tt=setTimeout(()=>{e.style.display='none'},7000)};
+const fail=e=>{const c=(e&&e.code)||e;$st('Erro ao gravar: '+c,true);toast(c==='invalid_argument'?'Não foi possível gravar: é preciso acesso de Editor ao portal.':'Não foi possível gravar a alteração ('+c+').')};
+const busy=()=>{const a=document.activeElement;return picking||(!!a&&(a.tagName==='TEXTAREA'||a.tagName==='SELECT'||(a.tagName==='INPUT'&&a.type!=='checkbox')))};
+function save(){
+  if(!ready)return;
+  if(!db){try{localStorage.setItem(K,JSON.stringify(S))}catch(e){}return}
+  for(const c of ['patients','sessions']){
+    const cur=new Map(S[c].map(o=>[o.id,JSON.stringify(o)]));
+    for(const [id,j] of cur)if(known[c].get(id)!==j)db.collection(c).doc(id).set(JSON.parse(j)).then(ok).catch(fail);
+    for(const id of known[c].keys())if(!cur.has(id))db.collection(c).doc(id).delete().then(ok).catch(fail);
+    known[c]=cur;
+  }
+  if(S.tpl!==knownTpl){knownTpl=S.tpl;db.doc('config/main').set({tpl:S.tpl}).then(ok).catch(fail)}
+}
+const $=s=>document.querySelector(s);
+const uid=()=>Math.random().toString(36).slice(2,9);
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const iso=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+const today=()=>iso(new Date());
+const addDays=(s,n)=>{const d=new Date(s+'T12:00:00');d.setDate(d.getDate()+n);return iso(d)};
+const fd=s=>s?s.split('-').reverse().join('/'):'';
+const brl=n=>Number(n||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+const age=s=>{if(!s)return'';const b=new Date(s+'T12:00:00'),n=new Date();let a=n.getFullYear()-b.getFullYear();if(n<new Date(n.getFullYear(),b.getMonth(),b.getDate()))a--;return a+' anos'};
+const pat=id=>S.patients.find(p=>p.id===id);
+const resp=p=>p.mesmo?p.nome:(p.resp||p.nome);
+const fmtCpf=s=>String(s||'').replace(/\D/g,'').slice(0,11).replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d{1,2})$/,'$1-$2');
+const cpfOk=s=>{const d=String(s).replace(/\D/g,'');if(d.length!==11||/^(\d)\1+$/.test(d))return false;for(const n of [9,10]){let t=0;for(let i=0;i<n;i++)t+=d[i]*(n+1-i);if((t*10)%11%10!==+d[n])return false}return true};
+const val=id=>{const e=document.getElementById(id);return e?e.value:''};
+let tab='cob',editId=null,armed='',legacy=null,viewId=null,justSaved=0,lastId=null,picking=false,pend=null,recId=null,rec=null,lastBlob=null,rmsg='';
+const fmtDur=n=>Math.floor(n/60)+':'+String(n%60).padStart(2,'0');
+const setMsg=t=>{rmsg=t;const e=document.getElementById('rmsg');if(e){e.textContent=t;if(t)e.scrollIntoView({block:'nearest'})}};
+function dadosBox(s){
+  const p=pat(s.pid)||{},L=(k,v)=>`<div><span class="mut">${k}</span><br>${esc(v||'—')}</div>`,
+  dias=Math.round((new Date(s.cob+'T12:00:00')-new Date(s.data+'T12:00:00'))/864e5);
+  return `<div class="card" style="background:var(--bg)"><b>Dados do atendimento</b>
+  <div class="grid" style="margin-top:6px">${L('Paciente',p.nome)}${L('Nascimento',p.nasc?fd(p.nasc)+' ('+age(p.nasc)+')':'')}${L('Sexo',p.sexo)}${L('Responsável financeiro',p.mesmo?(p.nome||'')+' (o próprio paciente)':p.resp)}${L('CPF do responsável',p.cpf)}${L('WhatsApp',p.tel)}${L('Data do atendimento',fd(s.data))}${L('Hora',s.hora)}${L('Valor',brl(s.valor))}${L('Data da cobrança',fd(s.cob)+' ('+(dias===0?'no mesmo dia':dias>0?dias+' dia(s) após':(-dias)+' dia(s) antes')+')')}${L('Série',s.rep>1?'Sessão '+s.seq+' de '+s.rep:'Sessão única')}${L('Cobrança enviada',s.env?fd(s.env):'Não')}${L('Pagamento',s.pago?'Pago em '+fd(s.pago):'Pendente')}</div>
+  ${s.transc?`<label>Transcrição</label><div style="white-space:pre-wrap">${esc(s.transc)}</div>`:''}${s.resumo?`<label>Resumo</label><div style="white-space:pre-wrap">${esc(s.resumo)}</div>`:''}</div>`;
+}
+function recBox(s){
+  return `<div class='card' style='background:var(--bg)'><b>Transcrição e resumo do atendimento</b><div id='rmsg' class='mut' style='font-weight:600'>${esc(rmsg)}</div>
+  <label>Transcrição</label><textarea id='tr' data-a='trsave' data-id='${s.id}' placeholder='Digite ou cole a transcrição do atendimento.'>${esc(s.transc)}</textarea>
+  <label>Resumo do atendimento</label><textarea id='rs' data-a='ressave' data-id='${s.id}' placeholder='Escreva aqui o resumo do atendimento.' style='min-height:140px'>${esc(s.resumo)}</textarea></div>`;
+}
+
+function waInfo(s){
+  const p=pat(s.pid);if(!p)return null;
+  let ph=String(p.tel||'').replace(/\D/g,'').replace(/^0+/,'');
+  if(ph.length===10||ph.length===11)ph='55'+ph;
+  const msg=S.tpl.replace(/\{responsavel\}/g,resp(p)).replace(/\{paciente\}/g,p.nome).replace(/\{data\}/g,fd(s.data)).replace(/\{valor\}/g,brl(s.valor));
+  return {ok:ph.length>=12,ph,msg,url:'https://wa.me/'+ph+'?text='+encodeURIComponent(msg)};
+}
+function waBtn(s,w){
+  if(!w)return '';
+  if(!w.ok)return '<span class="tag bad">Cadastre o WhatsApp com DDD</span>';
+  return `<a class="btn pri" href="${w.url}" target="_blank" rel="noopener noreferrer">${s.env?'Reenviar no WhatsApp':'Abrir WhatsApp'}</a>`;
+}
+function row(s){
+  const p=pat(s.pid)||{nome:'(paciente removido)'},t=today(),w=waInfo(s),late=!s.env&&!s.pago&&s.cob<=t;
+  const bEnv=s.env?`<button class="st done" data-a="delenv" data-id="${s.id}">Cobrança enviada ✓</button>`:`<button class="st go" data-a="enviada" data-id="${s.id}">Marcar como enviada</button>`;
+  const bPg=s.pago?`<button class="st done" data-a="delpg" data-id="${s.id}">Já pago ✓</button>`:`<button class="st go" data-a="pago" data-id="${s.id}">Marcar pago</button>`;
+  return `<div class="card"><div class="top"><b>${esc(p.nome)}</b><span>${brl(s.valor)}</span></div>
+  <div class="mut">Atendimento ${fd(s.data)} ${esc(s.hora||'')} · cobrar em ${fd(s.cob)}
+  ${late?'<span class="tag bad">enviar</span>':''}${s.env?'<span class="tag">enviada '+fd(s.env)+'</span>':''}${s.pago?'<span class="tag ok">pago '+fd(s.pago)+'</span>':''}</div>
+  <div class="btns">${s.pago?'':waBtn(s,w)}${bEnv}${bPg}${s.pago?'':`<input type="date" value="${s.cob}" data-a="cobchg" data-id="${s.id}" title="Data da cobrança">`}</div>${w&&!s.pago?`<details><summary class="mut">Ver número e mensagem</summary><div class="mut">Para: ${w.ok?'+'+w.ph:'(sem número válido)'}<br>${esc(w.msg)}</div></details>`:''}</div>`;
+}
+function vCob(){
+  const t=today(),m=t.slice(0,7),open=S.sessions.filter(s=>!s.pago).sort((a,b)=>a.cob.localeCompare(b.cob));
+  const due=open.filter(s=>!s.env&&s.cob<=t),wait=open.filter(s=>!s.env&&s.cob>t),sent=open.filter(s=>s.env);
+  const sum=a=>a.reduce((x,s)=>x+Number(s.valor||0),0);
+  const rec=S.sessions.filter(s=>s.pago&&s.pago.slice(0,7)===m);
+  const paid=S.sessions.filter(s=>s.pago).sort((a,b)=>b.pago.localeCompare(a.pago)).slice(0,30);
+  const blk=(h,a,e)=>`<h2>${h} (${a.length})</h2>${a.length?a.map(row).join(''):`<div class="mut">${e}</div>`}`;
+  return `<div class="sum"><div><span class="mut">A receber</span><b>${brl(sum(open))}</b></div><div><span class="mut">Recebido no mês</span><b>${brl(sum(rec))}</b></div></div>
+  ${blk('Enviar cobrança agora',due,'Nenhuma cobrança para enviar hoje.')}
+  ${blk('Enviadas, aguardando pagamento',sent,'Nada em aberto.')}
+  ${blk('Cobranças agendadas',wait,'Nenhuma cobrança agendada.')}
+  ${blk('Já pagos (últimos 30)',paid,'Nenhum pagamento registrado.')}`;
+}
+function vAtd(){
+  if(!S.patients.length)return '<div class="card">Cadastre um paciente primeiro, na aba Pacientes.</div>';
+  const p0=S.patients[0],list=[...S.sessions].sort((a,b)=>b.data.localeCompare(a.data));
+  return `<div class="card"><b>Novo atendimento</b>
+  <label>Paciente</label><select id="a_pid" data-a="a_pid">${S.patients.map(p=>`<option value="${p.id}">${esc(p.nome)}</option>`).join('')}</select>
+  <div class="grid"><div><label>Data</label><input type="date" id="a_data" value="${today()}"></div><div><label>Hora</label><input type="time" id="a_hora"></div>
+  <div><label>Valor (R$)</label><input type="number" step="0.01" id="a_valor" value="${p0.valor||''}"></div>
+  <div><label>Cobrar (dias após o atendimento)</label><input type="number" id="a_off" value="${p0.off||0}"></div></div>
+  <label>Repetir semanalmente (nº de sessões)</label><input type="number" min="1" max="52" id="a_rep" value="1">
+  <div class="mut">Use 0 para cobrar no mesmo dia e número negativo para cobrar antes.</div>
+  <div class="btns"><button class="pri" data-a="addses">Salvar atendimento</button></div></div>
+  ${justSaved&&lastId?`<div class="card" style="border-color:var(--ok)"><b style="color:var(--ok)">${justSaved>1?justSaved+' atendimentos salvos':'Atendimento salvo'}.</b><div class="btns"><button class="pri" data-a="vdados" data-id="${lastId}">Ver todos os dados digitados</button></div></div>`:''}<h2>Atendimentos (${list.length})</h2>
+  ${list.map(s=>{const p=pat(s.pid)||{nome:'(removido)'};return `<div class="card" id="ses-${s.id}"><div class="top"><b>${esc(p.nome)}</b><span>${brl(s.valor)}</span></div>
+  <div class="mut">${fd(s.data)} ${esc(s.hora||'')} · cobrança ${fd(s.cob)}${s.pago?' · pago':s.env?' · enviada':''}</div>
+  <div class="btns"><button data-a="vdados" data-id="${s.id}">${viewId===s.id?'Ocultar dados':'Ver dados'}</button><button data-a="recbox" data-id="${s.id}">Transcrição e resumo</button><button data-a="delses" data-id="${s.id}">Excluir</button></div>${viewId===s.id?dadosBox(s):''}${recId===s.id?recBox(s):''}</div>`}).join('')}`;
+}
+function vPac(){
+  const e=S.patients.find(p=>p.id===editId)||{mesmo:true};
+  return `<div class="card"><b>${editId?'Editar paciente':'Novo paciente'}</b><div class="mut">Todos os campos marcados com * são obrigatórios.</div>
+  <label>Nome do paciente *</label><input id="p_nome" value="${esc(e.nome)}">
+  <div class="grid"><div><label>Data de nascimento *</label><input type="date" id="p_nasc" value="${esc(e.nasc)}"></div>
+  <div><label>Sexo *</label><select id="p_sexo"><option value="">Selecione…</option>${['Feminino','Masculino','Outro'].map(x=>`<option${e.sexo===x?' selected':''}>${x}</option>`).join('')}</select></div></div>
+  <label class="chk"><input type="checkbox" id="p_mesmo" data-a="p_mesmo" ${e.mesmo?'checked':''}> Responsável financeiro é o próprio paciente</label>
+  <div id="p_respbox" style="display:${e.mesmo?'none':'block'}"><label>Nome do responsável financeiro *</label><input id="p_resp" value="${esc(e.resp)}"></div>
+  <label>CPF do responsável financeiro (do paciente, se for o mesmo) *</label><input id="p_cpf" inputmode="numeric" maxlength="14" placeholder="000.000.000-00" value="${esc(e.cpf)}">
+  <label>WhatsApp de quem recebe a cobrança (com DDD) *</label><input type="tel" id="p_tel" placeholder="11999998888" value="${esc(e.tel)}">
+  <div class="grid"><div><label>Valor padrão da sessão (R$) *</label><input type="number" step="0.01" id="p_valor" value="${esc(e.valor)}"></div>
+  <div><label>Cobrar (dias após o atendimento) *</label><input type="number" id="p_off" placeholder="0 = no mesmo dia" value="${e.off==null?'':e.off}"></div></div>
+  <div id="perr" style="color:var(--bad);font-weight:600;margin-top:8px"></div>
+  <div class="btns"><button class="pri" data-a="savepat">Salvar</button>${editId?'<button data-a="cancelpat">Cancelar</button>':''}</div></div>
+  <h2>Pacientes (${S.patients.length})</h2>
+  ${S.patients.map(p=>`<div class="card"><div class="top"><b>${esc(p.nome)}</b><span class="mut">${esc(p.sexo)} · ${age(p.nasc)}</span></div>
+  <div class="mut">Responsável: ${p.mesmo?'o próprio paciente':esc(p.resp)} · CPF ${esc(p.cpf||'não informado')} · ${esc(p.tel||'sem WhatsApp')} · ${brl(p.valor)} · cobrança ${p.off||0} dia(s) após</div>
+  <div class="btns"><button data-a="editpat" data-id="${p.id}">Editar</button><button data-a="delpat" data-id="${p.id}">Excluir</button></div></div>`).join('')}`;
+}
+function vCfg(){
+  return `<div class="card"><b>Mensagem de cobrança</b><div class="mut">Campos: {responsavel} {paciente} {data} {valor}</div>
+  <textarea id="tpl" data-a="tpl">${esc(S.tpl)}</textarea></div>
+  <div class="card"><b>Backup</b><div class="mut">Os dados ficam no banco de dados Supabase. O plano gratuito não faz backup automático: copie o texto abaixo e guarde-o de vez em quando.</div>
+  <textarea id="bk" readonly>${esc(JSON.stringify(S))}</textarea>
+  <div class="btns"><button data-a="copy">Selecionar tudo</button></div>
+  <label>Restaurar backup (substitui os dados atuais)</label><textarea id="imp"></textarea>
+  <div class="btns"><button data-a="import">Restaurar</button><span id="impmsg" class="mut"></span></div></div>`;
+}
+function migBar(){
+  const el=document.getElementById('mig');if(!el)return;
+  if(!legacy){el.innerHTML='';return}
+  const np=(legacy.patients||[]).filter(x=>!S.patients.some(y=>y.id===x.id)).length,ns=(legacy.sessions||[]).filter(x=>!S.sessions.some(y=>y.id===x.id)).length;
+  el.innerHTML=(np+ns)?`<div class="card" style="border-color:#d97706"><b>Dados antigos encontrados neste navegador</b><div class="mut">${np} paciente(s) e ${ns} atendimento(s) estão guardados só aqui. Copie para o banco de dados para não perdê-los.</div><div class="btns"><button class="pri" data-a="migrar">Copiar para o banco de dados</button></div></div>`:'';
+}
+function render(){
+  const T=[['cob','Cobranças'],['atd','Atendimentos'],['pac','Pacientes'],['cfg','Ajustes']];
+  $('#nav').innerHTML=T.map(([k,n])=>`<button class="${k===tab?'on':''}" data-a="tab" data-id="${k}">${n}</button>`).join('');
+  $('#app').innerHTML={cob:vCob,atd:vAtd,pac:vPac,cfg:vCfg}[tab]();migBar();
+}
+document.addEventListener('click',e=>{
+  const b=e.target.closest('[data-a]');if(!b||['INPUT','SELECT','TEXTAREA'].includes(b.tagName))return;
+  const a=b.dataset.a,id=b.dataset.id,s=S.sessions.find(x=>x.id===id);picking=false;if(a!=='addses'&&a!=='vdados')justSaved=0;
+  if(a.startsWith('del')){const k=a+id;if(armed!==k){armed=k;b.textContent='Confirmar?';return}armed=''}
+  if(a==='tab'){tab=id;editId=null}
+  else if(a==='enviada'&&s){s.env=today();save()}
+  else if(a==='pago'&&s){s.pago=today();save()}
+  else if(a==='unpago'&&s){delete s.pago;save()}
+  else if(a==='migrar'&&legacy){const ip=new Set(S.patients.map(x=>x.id)),is=new Set(S.sessions.map(x=>x.id));(legacy.patients||[]).forEach(x=>{if(!ip.has(x.id))S.patients.push(x)});(legacy.sessions||[]).forEach(x=>{if(!is.has(x.id))S.sessions.push(x)});if(legacy.tpl&&S.tpl===DEF)S.tpl=legacy.tpl;save();toast('Dados deste navegador copiados para o banco de dados.')}
+  else if(a==='delenv'&&s){delete s.env;save()}
+  else if(a==='delpg'&&s){delete s.pago;save()}
+  else if(a==='delses'){S.sessions=S.sessions.filter(x=>x.id!==id);save()}
+  else if(a==='delpat'){S.patients=S.patients.filter(x=>x.id!==id);S.sessions=S.sessions.filter(x=>x.pid!==id);save()}
+  else if(a==='editpat'){editId=id}
+  else if(a==='cancelpat'){editId=null}
+  else if(a==='savepat'){
+    const mesmo=$('#p_mesmo').checked,g=k=>val(k).trim(),falta=[];
+    document.querySelectorAll('.err').forEach(x=>x.classList.remove('err'));
+    const chk=(k,nome,ok)=>{if(!ok){falta.push(nome);const el=$('#'+k);if(el)el.classList.add('err')}};
+    chk('p_nome','nome do paciente',!!g('p_nome'));
+    chk('p_nasc','data de nascimento (não pode ser futura)',!!g('p_nasc')&&g('p_nasc')<=today());
+    chk('p_sexo','sexo',!!g('p_sexo'));
+    if(!mesmo)chk('p_resp','nome do responsável financeiro',!!g('p_resp'));
+    chk('p_cpf','CPF válido do responsável financeiro',cpfOk(g('p_cpf')));
+    const ph=g('p_tel').replace(/\D/g,'').replace(/^0+/,'');
+    chk('p_tel','WhatsApp com DDD (10 ou 11 dígitos)',ph.length===10||ph.length===11||(ph.length>=12&&ph.length<=13&&ph.startsWith('55')));
+    chk('p_valor','valor da sessão maior que zero',parseFloat(g('p_valor'))>0);
+    chk('p_off','dias para a cobrança',g('p_off')!==''&&!isNaN(parseInt(g('p_off'))));
+    if(falta.length){const el=$('#perr');el.textContent='Preencha corretamente: '+falta.join('; ')+'.';el.scrollIntoView({block:'center'});return}
+    const o={id:editId||uid(),nome:g('p_nome'),nasc:g('p_nasc'),sexo:g('p_sexo'),mesmo,resp:mesmo?'':g('p_resp'),tel:g('p_tel'),cpf:fmtCpf(g('p_cpf')),valor:parseFloat(g('p_valor')),off:parseInt(g('p_off'))};
+    if(editId)S.patients=S.patients.map(x=>x.id===editId?o:x);else S.patients.push(o);
+    editId=null;save()}
+  else if(a==='addses'){
+    const pid=val('a_pid'),d=val('a_data');if(!pid||!d){alert('Informe paciente e data.');return}
+    const n=Math.max(1,Math.min(52,parseInt(val('a_rep'))||1)),off=parseInt(val('a_off'))||0;
+    const ids=[];for(let i=0;i<n;i++){const dt=addDays(d,7*i),sid=uid();ids.push(sid);S.sessions.push({id:sid,pid,data:dt,hora:val('a_hora'),valor:parseFloat(val('a_valor'))||0,cob:addDays(dt,off),rep:n,seq:i+1})}
+    justSaved=n;lastId=ids[0];viewId=null;save()}
+  else if(a==='vdados'){viewId=viewId===id?null:id;render();const el=document.getElementById('ses-'+id);if(el)el.scrollIntoView({block:'start'});return}
+  else if(a==='recbox'){recId=recId===id?null:id}
+  else if(a==='logout'){if(sbClient)sbClient.auth.signOut().then(()=>location.reload());return}
+  else if(a==='copy'){const t=$('#bk');t.focus();t.select()}
+  else if(a==='import'){
+    try{const j=JSON.parse(val('imp'));if(!Array.isArray(j.patients)||!Array.isArray(j.sessions))throw 0;S=Object.assign({tpl:DEF},j);save();tab='cob'}
+    catch(x){$('#impmsg').textContent='Backup inválido.';return}}
+  render();
+});
+document.addEventListener('change',e=>{
+  const t=e.target,a=t.dataset&&t.dataset.a;if(!a)return;
+  if(a==='cobchg'){const s=S.sessions.find(x=>x.id===t.dataset.id);if(s&&t.value){s.cob=t.value;save();render()}}
+  else if(a==='a_pid'){const p=pat(t.value);if(p){$('#a_valor').value=p.valor||'';$('#a_off').value=p.off||0}}
+  else if(a==='p_mesmo'){$('#p_respbox').style.display=t.checked?'none':'block'}
+  else if(a==='tpl'){S.tpl=t.value||DEF;save()}
+  else if(a==='trsave'||a==='ressave'){const s=S.sessions.find(x=>x.id===t.dataset.id);if(s){if(a==='trsave')s.transc=t.value;else s.resumo=t.value;save()}}
+});
+document.addEventListener('input',e=>{if(e.target.classList)e.target.classList.remove('err');if(e.target.id==='p_cpf')e.target.value=fmtCpf(e.target.value)});
+let sbClient=null;
+function getCfg(){
+  if(SUPABASE_URL&&SUPABASE_ANON_KEY)return{url:SUPABASE_URL,key:SUPABASE_ANON_KEY};
+  try{const c=JSON.parse(localStorage.getItem('fono_cfg')||'null');if(c&&c.url&&c.key)return c}catch(e){}
+  return null;
+}
+function setupScreen(){return new Promise(res=>{
+  $('#app').innerHTML=`<div class="card"><b>Configurar o banco de dados</b><div class="mut">Cole os dados do seu projeto Supabase (Project Settings → API).</div>
+  <label>Project URL</label><input id="cf_url" placeholder="https://xxxx.supabase.co"><label>Chave anon / publishable</label><input id="cf_key">
+  <div id="cf_err" style="color:var(--bad)"></div><div class="btns"><button class="pri" id="cf_go">Salvar</button></div></div>`;
+  $('#cf_go').onclick=()=>{const url=$('#cf_url').value.trim().replace(/\/+$/,''),key=$('#cf_key').value.trim();
+    if(!/^https:\/\/[^\/]+\.supabase\.co$/.test(url)||key.length<20){$('#cf_err').textContent='Confira a URL e a chave.';return}
+    try{localStorage.setItem('fono_cfg',JSON.stringify({url,key}))}catch(e){}res({url,key})};
+})}
+function loginScreen(sb){return new Promise(res=>{
+  $('#app').innerHTML=`<div class="card"><b>Entrar</b><label>E-mail</label><input id="lg_em" type="email" autocomplete="username"><label>Senha</label><input id="lg_pw" type="password" autocomplete="current-password">
+  <div id="lg_err" style="color:var(--bad)"></div><div class="btns"><button class="pri" id="lg_go">Entrar</button></div></div>`;
+  const go=async()=>{const b=$('#lg_go');b.disabled=true;$('#lg_err').textContent='';
+    const r=await sb.auth.signInWithPassword({email:$('#lg_em').value.trim(),password:$('#lg_pw').value});
+    if(r.error){$('#lg_err').textContent=r.error.status===400?'E-mail ou senha incorretos.':'Falha ao entrar: '+r.error.message;b.disabled=false;return}
+    res(r.data.session)};
+  $('#lg_go').onclick=go;$('#lg_pw').onkeydown=e=>{if(e.key==='Enter')go()};
+})}
+async function startSupabase(){
+  let cfg=getCfg();if(!cfg)cfg=await setupScreen();
+  if(!window.supabase)throw new Error('a biblioteca do Supabase não carregou (verifique a internet)');
+  const sb=sbClient=supabase.createClient(cfg.url,cfg.key);
+  let session=(await sb.auth.getSession()).data.session;
+  while(!session)session=await loginScreen(sb);
+  $('#lo').style.display='';render();
+  return adapter(sb,session.user.id);
+}
+function adapter(sb,uid){
+  const cache={patients:new Map(),sessions:new Map()},subs={patients:[],sessions:[],cfg:[]},errs=[];let tpl=null,rt,loadErr=null;
+  const E=e=>({code:(e&&(e.code||e.status))||'erro',message:(e&&e.message)||''});
+  const snap=c=>({docs:[...cache[c].values()].map(o=>({data:()=>JSON.parse(JSON.stringify(o))}))});
+  async function fetchAll(c){const out=[];for(let from=0;;from+=1000){const r=await sb.from(c).select('id,data').order('id').range(from,from+999);if(r.error)throw E(r.error);out.push(...r.data);if(r.data.length<1000)break}return out}
+  async function load(){
+    for(const c of ['patients','sessions'])cache[c]=new Map((await fetchAll(c)).map(x=>[x.id,x.data]));
+    const r=await sb.from('config').select('tpl').maybeSingle();if(r.error)throw E(r.error);tpl=r.data?r.data.tpl:null;
+  }
+  const emitAll=()=>{subs.patients.forEach(f=>f(snap('patients')));subs.sessions.forEach(f=>f(snap('sessions')));subs.cfg.forEach(f=>f({exists:tpl!=null,data:()=>({tpl})}))};
+  const ready=load().then(emitAll).catch(e=>{loadErr=e;errs.forEach(f=>f(e))});
+  try{sb.channel('fono-'+uid).on('postgres_changes',{event:'*',schema:'public'},()=>{clearTimeout(rt);rt=setTimeout(()=>load().then(emitAll).catch(()=>{}),500)}).subscribe()}catch(e){}
+  const wr=async p=>{const r=await p;if(r.error)throw E(r.error)};
+  const sub=(k,f,er)=>{subs[k].push(f);if(er){errs.push(er);if(loadErr)er(loadErr)}return()=>{}};
+  return{
+    collection:c=>({
+      onSnapshot:(f,er)=>{ready.then(()=>{if(!loadErr)f(snap(c))});return sub(c,f,er)},
+      doc:id=>({
+        set:async o=>{await wr(sb.from(c).upsert({id,user_id:uid,data:o,updated_at:new Date().toISOString()}));cache[c].set(id,o)},
+        delete:async()=>{await wr(sb.from(c).delete().eq('id',id));cache[c].delete(id)}
+      })}),
+    doc:()=>({
+      onSnapshot:(f,er)=>{ready.then(()=>{if(!loadErr)f({exists:tpl!=null,data:()=>({tpl})})});return sub('cfg',f,er)},
+      set:async o=>{await wr(sb.from('config').upsert({user_id:uid,tpl:o.tpl,updated_at:new Date().toISOString()}));tpl=o.tpl}
+    })
+  };
+}
+(async()=>{
+  render();$st('Conectando ao banco de dados…');
+  try{db=await startSupabase()}catch(e){db=null;$st('Não foi possível conectar ao banco de dados: '+((e&&e.message)||'erro'),true)}
+  if(!db)return;
+  ready=true;
+  const t=setTimeout(()=>$st('O banco ainda não respondeu; os dados podem estar desatualizados.'),10000);
+  const er=e=>{clearTimeout(t);$st('Erro no banco de dados: '+(e.code||'')+' '+(e.message||''),true)};
+  for(const c of ['patients','sessions'])db.collection(c).onSnapshot(q=>{
+    clearTimeout(t);
+    S[c]=q.docs.map(d=>d.data());
+    if(c==='patients')S[c].sort((a,b)=>String(a.nome).localeCompare(String(b.nome)));
+    known[c]=new Map(S[c].map(o=>[o.id,JSON.stringify(o)]));
+    const se=document.getElementById('st');if(se&&!/salvo/.test(se.textContent))$st('Banco de dados conectado');if(!busy())render();
+  },er);
+  db.doc('config/main').onSnapshot(q=>{
+    if(q.exists&&q.data().tpl){S.tpl=q.data().tpl;knownTpl=S.tpl}
+    if(!busy())render();
+  },er);
+})();
+</script></body></html>
