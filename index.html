@@ -278,7 +278,7 @@ function adapter(sb,uid){
   async function fetchAll(c){const out=[];for(let from=0;;from+=1000){const r=await sb.from(c).select('id,data').order('id').range(from,from+999);if(r.error)throw E(r.error);out.push(...r.data);if(r.data.length<1000)break}return out}
   async function load(){
     for(const c of ['patients','sessions'])cache[c]=new Map((await fetchAll(c)).map(x=>[x.id,x.data]));
-    const r=await sb.from('config').select('tpl').eq('id', 'main'.maybeSingle();if(r.error)throw E(r.error);tpl=r.data?r.data.tpl:null;
+    const r=await sb.from('config').select('tpl').eq('id', 'main').maybeSingle();if(r.error)throw E(r.error);tpl=r.data?r.data.tpl:null;
   }
   const emitAll=()=>{subs.patients.forEach(f=>f(snap('patients')));subs.sessions.forEach(f=>f(snap('sessions')));subs.cfg.forEach(f=>f({exists:tpl!=null,data:()=>({tpl})}))};
   const ready=load().then(emitAll).catch(e=>{loadErr=e;errs.forEach(f=>f(e))});
