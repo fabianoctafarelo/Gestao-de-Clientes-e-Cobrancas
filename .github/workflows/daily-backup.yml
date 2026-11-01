@@ -24,7 +24,7 @@ jobs:
       - name: Install PostgreSQL Client
         run: |
           sudo apt-get update
-          sudo apt-get install -y postgresql-client dnsutils
+          sudo apt-get install -y postgresql-client
 
       - name: Generate Database Dump
         env:
@@ -38,21 +38,11 @@ jobs:
           TIMESTAMP="$(date +'%Y-%m-%d_%H-%M-%S')"
           BACKUP_FILE="backups/backup_${TIMESTAMP}.sql"
 
-          DB_HOST="db.${SUPABASE_PROJECT_ID}.supabase.co"
+          echo "Iniciando o backup do projeto: ${SUPABASE_PROJECT_ID}"
 
-          # Força a extração EXCLUSIVA de um endereço IPv4 válido, ignorando completamente o IPv6
-          IPV4_ADDR=$(dig +short A "$DB_HOST" | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' | head -n 1)
-
-          if [ -z "$IPV4_ADDR" ]; then
-            echo "Erro: Não foi possível resolver um endereço IPv4 para $DB_HOST"
-            exit 1
-          fi
-
-          echo "Endereço IPv4 isolado com sucesso: $IPV4_ADDR"
-          echo "Executando pg_dump nativo via IPv4..."
-
-          # Executa o pg_dump apontando diretamente para o IP V4 com SSL ativado
-          pg_dump -h "$IPV4_ADDR" -U postgres -d postgres -p 5432 --no-owner --no-acl --column-inserts -f "$BACKUP_FILE"
+          # Executa o pg_dump diretamente usando a string de conexão segura do Supabase
+          pg_dump "postgresql://postgres:${SUPABASE_DB_PASSWORD}@db.${SUPABASE_PROJECT_ID}.supabase.co:5432/postgres?sslmode=require" \
+            --no-owner --no-acl --column-inserts -f "$BACKUP_FILE"
 
       - name: Commit and Push Backup to Repository
         env:
