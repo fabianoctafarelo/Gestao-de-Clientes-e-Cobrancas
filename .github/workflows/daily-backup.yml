@@ -2,7 +2,6 @@ name: Supabase Database Backup
 
 on:
   workflow_dispatch:
-
   schedule:
     - cron: "0 3 * * *" # todos os dias às 03:00 UTC
 
@@ -29,6 +28,14 @@ jobs:
 
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      # --- NOVO PASSO: MANTÉM O SUPABASE ATIVO ---
+      - name: Keep Supabase Alive (Ping API)
+        run: |
+          echo "Enviando sinal de atividade para o Supabase..."
+          curl -I "https://${{ secrets.SUPABASE_PROJECT_ID }}.supabase.co/rest/v1/" \
+            -H "apikey: ${{ secrets.SUPABASE_ACCESS_TOKEN }}" || true
+      --------------------------------------------
 
       - name: Install Supabase CLI
         uses: supabase/setup-cli@v1
@@ -62,7 +69,7 @@ jobs:
             -C prisma/backups/$TIMESTAMP .
 
       - name: Upload backup artifact
-        uses: actions/upload-artifact@v4
+        uses: upload-artifact@v4
         with:
           name: supabase-backup-${{ env.TIMESTAMP }}
           path: prisma/backups/${{ env.TIMESTAMP }}.tar.gz
