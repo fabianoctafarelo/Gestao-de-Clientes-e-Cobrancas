@@ -2,7 +2,7 @@ name: Daily Database Backup
 
 on:
   schedule:
-    - cron: '0 0 * * *'
+    - cron: '0 3 * * *' # Executa diariamente às 03:00 UTC (00:00 BRT)
   workflow_dispatch:
 
 permissions:
@@ -11,56 +11,46 @@ permissions:
 jobs:
   backup:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
 
     steps:
-      - name: Checkout repository
+      - name: Checkout do Repositório
         uses: actions/checkout@v4
         with:
           persist-credentials: true
           fetch-depth: 0
 
-      - name: Setup Supabase CLI
+      - name: Instalar Supabase CLI
         uses: supabase/setup-cli@v1
         with:
           supabase-version: latest
 
-      - name: Generate Database Dump
+      - name: Gerar Dump do Banco de Dados
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
         run: |
           set -euo pipefail
-          
           mkdir -p backups
           TIMESTAMP="$(date +'%Y-%m-%d_%H-%M-%S')"
           BACKUP_FILE="backups/backup_${TIMESTAMP}.sql"
 
-          echo "Vinculando projeto e gerando backup via API segura..."
-
-          # Vincula o projeto ao runner usando o Access Token
+          echo "Conectando via API HTTPS e gerando dump..."
           supabase link --project-ref "$SUPABASE_PROJECT_ID" --password ""
-
-          # Executa o dump nativo da CLI utilizando o projeto vinculado
           supabase db dump --linked -f "$BACKUP_FILE"
 
-      - name: Commit and Push Backup to Repository
+      - name: Registrar Backup no Repositório
         env:
-          GITHUB_TOKEN: ${{ secrets.BACKUP_PAT || github.token }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-
-          git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git"
 
           git add backups/
 
           if ! git diff --cached --quiet; then
-            git commit -m "chore: automated daily database backup $(date +'%Y-%m-%d')"
+            git commit -m "chore(backup): automação diária do banco de dados $(date +'%Y-%m-%d')"
             git push origin HEAD:${{ github.ref_name }}
           else
-            echo "No new backup to commit."
+            echo "Nenhum novo backup para registrar."
           fi
