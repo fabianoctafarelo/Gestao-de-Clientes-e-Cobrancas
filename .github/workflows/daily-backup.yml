@@ -18,7 +18,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          token: ${{ secrets.BACKUP_PAT || github.token }}
+          persist-credentials: true
           fetch-depth: 0
 
       - name: Setup Supabase CLI
@@ -26,39 +26,47 @@ jobs:
         with:
           supabase-version: latest
 
+      - name: Verify Supabase CLI
+        run: supabase --version
+
       - name: Generate Database Dump
         env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
         run: |
           set -euo pipefail
+
+          if [ -z "${SUPABASE_DB_URL:-}" ]; then
+            echo "::error::SUPABASE_DB_URL secret is not set."
+            exit 1
+          fi
+
           mkdir -p backups
           TIMESTAMP=$(date +'%Y-%m-%d_%H-%M-%S')
-          supabase db dump --project-ref "$SUPABASE_PROJECT_ID" -f "backups/backup_${TIMESTAMP}.sql"
+          supabase db dump --db-url "$SUPABASE_DB_URL" -f "backups/backup_$TIMESTAMP.sql"
 
       - name: Commit and Push Backup to Repository
         env:
-          BACKUP_TOKEN: ${{ secrets.BACKUP_PAT || github.token }}
-          BRANCH_NAME: ${{ github.ref_name || github.event.repository.default_branch }}
+          GITHUB_TOKEN: ${{ secrets.BACKUP_PAT || github.token }}
         run: |
           set -euo pipefail
-
-          if [ -z "${BACKUP_TOKEN}" ]; then
-            echo "BACKUP_PAT is not configured and github.token is not available."
-            exit 1
-          fi
 
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-          git remote set-url origin "https://x-access-token:${BACKUP_TOKEN}@github.com/${{ github.repository }}.git"
+          git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git"
 
           git add backups/
 
-          if git diff --cached --quiet; then
-            echo "No new backup to commit."
-            exit 0
-          fi
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: automated daily database backup $(date +'%Y-%m-%d')"
 
-          git commit -m "chore: automated daily database backup $(date +'%Y-%m-%d')"
-          git push origin "HEAD:${BRANCH_NAME}"
+            BRANCH="${GITHUB_REF_NAME:-$(git branch --show-current)}"
+            if [ -z "$BRANCH" ]; then
+              echo "::error::Unable to determine the branch to push to."
+              exit 1
+            fi
+
+            git push origin "HEAD:$BRANCH"
+          else
+            echo "No new backup to commit."
+          fi
