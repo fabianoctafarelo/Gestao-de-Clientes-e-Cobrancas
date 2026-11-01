@@ -1,72 +1,89 @@
-name: Daily Database Backup
+name: Supabase Database Backup
 
 on:
-  schedule:
-    - cron: "0 0 * * *"
   workflow_dispatch:
 
-permissions:
-  contents: write
+  schedule:
+    - cron: "0 3 * * *" # todos os dias às 03:00 UTC
 
 jobs:
-  backup:
+  run_db_backup:
     runs-on: ubuntu-latest
+
     permissions:
       contents: write
-    timeout-minutes: 20
+
+    env:
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+      BACKUP_ENABLED: ${{ vars.BACKUP_ENABLED }}
 
     steps:
+      - name: Check if backups are enabled
+        run: |
+          if [ "$BACKUP_ENABLED" != "true" ]; then
+            echo "Backups are disabled."
+            exit 0
+          fi
+
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          persist-credentials: true
-          fetch-depth: 0
 
-      - name: Setup Supabase CLI
+      - name: Install Supabase CLI
         uses: supabase/setup-cli@v1
         with:
           version: latest
 
-      - name: Generate Database Dump
-        env:
-          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
-          BACKUP_ENABLED:  ${{ vars.BACKUP_ENABLED }}
-          SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
-          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
-        shell: bash
+      - name: Create backup folder
         run: |
-          set -euo pipefail
+          TIMESTAMP=$(date +"%Y-%m-%d_%H-%M-%S")
 
-          : "${SUPABASE_PROJECT_ID:?Missing SUPABASE_PROJECT_ID}"
-          : "${SUPABASE_DB_PASSWORD:?Missing SUPABASE_DB_PASSWORD}"
+          mkdir -p prisma/backups/$TIMESTAMP
 
-          mkdir -p backups
-          TIMESTAMP="$(date -u +'%Y-%m-%d_%H-%M-%S')"
-          BACKUP_FILE="backups/backup_${TIMESTAMP}.sql"
+          echo "TIMESTAMP=$TIMESTAMP" >> $GITHUB_ENV
 
-          echo "Gerando dump do banco de dados via Transaction Pooler (IPv4)..."
-          # Alterado para a porta 6543 (Transaction Pooler do Supabase)
-          SUPABASE_DB_URL="postgresql://postgres.${SUPABASE_PROJECT_ID}:${SUPABASE_DB_PASSWORD}@aws-0-sa-east-1.pooler.supabase.co:6543/postgres"
-
-          supabase db dump --db-url "$SUPABASE_DB_URL" --file "$BACKUP_FILE"
-
-      - name: Commit and Push Backup to Repository
-        env:
-          GITHUB_TOKEN: ${{ secrets.BACKUP_PAT || github.token }}
-        shell: bash
+      - name: Backup roles
         run: |
-          set -euo pipefail
+          supabase db dump \
+            --db-url "$SUPABASE_DB_URL" \
+            --role-only \
+            -f prisma/backups/$TIMESTAMP/roles.sql
 
+      - name: Backup schema
+        run: |
+          supabase db dump \
+            --db-url "$SUPABASE_DB_URL" \
+            -f prisma/backups/$TIMESTAMP/schema.sql
+
+      - name: Backup data
+        run: |
+          supabase db dump \
+            --db-url "$SUPABASE_DB_URL" \
+            --data-only \
+            --use-copy \
+            -f prisma/backups/$TIMESTAMP/data.sql
+
+      - name: Compress backup
+        run: |
+          tar -czf prisma/backups/${TIMESTAMP}.tar.gz \
+            -C prisma/backups/$TIMESTAMP .
+
+      - name: Upload backup artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: supabase-backup-${{ env.TIMESTAMP }}
+          path: prisma/backups/${{ env.TIMESTAMP }}.tar.gz
+          retention-days: 30
+
+      - name: Commit backup files
+        run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-          git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git"
+          git add prisma/backups/
 
-          git add backups/
+          git diff --staged --quiet || \
+          git commit -m "chore: database backup $TIMESTAMP"
 
-          if ! git diff --cached --quiet; then
-            git commit -m "chore: automated daily database backup $(date -u +'%Y-%m-%d')"
-            git push origin HEAD:${{ github.ref_name }}
-          else
-            echo "No new backup to commit."
-          fi
+      - name: Push backup files
+        run: |
+          git push origin HEAD:${{ github.ref_name }}
