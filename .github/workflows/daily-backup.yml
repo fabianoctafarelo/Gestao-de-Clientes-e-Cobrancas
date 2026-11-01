@@ -21,29 +21,27 @@ jobs:
           persist-credentials: true
           fetch-depth: 0
 
-      - name: Setup Supabase CLI
-        uses: supabase/setup-cli@v1
-        with:
-          supabase-version: latest
+      - name: Install PostgreSQL Client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
 
       - name: Generate Database Dump
         env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
           PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: |
           set -euo pipefail
           
-          # Força o uso de servidores DNS públicos estáveis no runner para evitar falhas de rota
-          echo "nameserver 8.8.8.8" | sudo tee /etc/resolv.conf > /dev/null
-
           mkdir -p backups
           TIMESTAMP="$(date +'%Y-%m-%d_%H-%M-%S')"
           BACKUP_FILE="backups/backup_${TIMESTAMP}.sql"
 
-          # Executa o dump utilizando o domínio padrão do Supabase com SSL obrigatório
-          supabase db dump --db-url "postgresql://postgres:${SUPABASE_DB_PASSWORD}@db.${SUPABASE_PROJECT_ID}.supabase.co:5432/postgres?sslmode=require" -f "$BACKUP_FILE"
+          DB_HOST="db.${SUPABASE_PROJECT_ID}.supabase.co"
+
+          echo "Executando pg_dump nativo..."
+          pg_dump -h "$DB_HOST" -U postgres -d postgres -p 5432 --no-owner --no-acl -f "$BACKUP_FILE"
 
       - name: Commit and Push Backup to Repository
         env:
