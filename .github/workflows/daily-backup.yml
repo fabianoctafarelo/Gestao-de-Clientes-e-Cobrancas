@@ -29,6 +29,8 @@ jobs:
 
       - name: Generate Database Dump
         env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          BACKUP_ENABLED:  ${{ vars.BACKUP_ENABLED }}
           SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         shell: bash
