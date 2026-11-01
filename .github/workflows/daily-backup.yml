@@ -21,16 +21,15 @@ jobs:
           persist-credentials: true
           fetch-depth: 0
 
-      - name: Install PostgreSQL Client
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y postgresql-client
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          supabase-version: latest
 
       - name: Generate Database Dump
         env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
-          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
-          PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: |
           set -euo pipefail
           
@@ -38,11 +37,13 @@ jobs:
           TIMESTAMP="$(date +'%Y-%m-%d_%H-%M-%S')"
           BACKUP_FILE="backups/backup_${TIMESTAMP}.sql"
 
-          echo "Iniciando o backup do projeto: ${SUPABASE_PROJECT_ID}"
+          echo "Iniciando backup via API/CLI (porta HTTPS 443)..."
 
-          # Executa o pg_dump diretamente usando a string de conexão segura do Supabase
-          pg_dump "postgresql://postgres:${SUPABASE_DB_PASSWORD}@db.${SUPABASE_PROJECT_ID}.supabase.co:5432/postgres?sslmode=require" \
-            --no-owner --no-acl --column-inserts -f "$BACKUP_FILE"
+          # Vincula o projeto usando o token de acesso (sem passar pela porta 5432 bloqueada)
+          supabase link --project-ref "$SUPABASE_PROJECT_ID" --password ""
+
+          # Executa o dump utilizando a infraestrutura gerenciada do Supabase
+          supabase db dump --linked -f "$BACKUP_FILE"
 
       - name: Commit and Push Backup to Repository
         env:
