@@ -34,18 +34,12 @@ jobs:
         run: |
           set -euo pipefail
           
-          echo "Atualizando a Supabase CLI para a versão mais recente..."
-          npm install -g supabase --unsafe-perm=true || true
-
-          echo "Supabase CLI version atualizada:"
-          supabase --version
-
           mkdir -p backups
           TIMESTAMP="$(date +'%Y-%m-%d_%H-%M-%S')"
           BACKUP_FILE="backups/backup_${TIMESTAMP}.sql"
 
-          # Executa o dump utilizando a conexão direta segura via senha do banco
-          supabase db dump --db-url "postgresql://postgres:${SUPABASE_DB_PASSWORD}@db.${SUPABASE_PROJECT_ID}.supabase.co:5432/postgres" -f "$BACKUP_FILE"
+          # Utiliza a porta 6543 (Pooler) e o SSL exigido para evitar falhas de rede no runner do GitHub
+          supabase db dump --db-url "postgresql://postgres.${SUPABASE_PROJECT_ID}:${SUPABASE_DB_PASSWORD}@aws-0-sa-east-1.pooler.supabase.com:6543/postgres?sslmode=require" -f "$BACKUP_FILE"
 
       - name: Commit and Push Backup to Repository
         env:
