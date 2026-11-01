@@ -37,8 +37,10 @@ jobs:
           TIMESTAMP="$(date +'%Y-%m-%d_%H-%M-%S')"
           BACKUP_FILE="backups/backup_${TIMESTAMP}.sql"
 
-          # Vincula o projeto usando o token e gera o dump de forma nativa e segura
+          # Vincula o projeto ao ambiente de CI usando o token e a senha vazia/automática
           supabase link --project-ref "$SUPABASE_PROJECT_ID" --password ""
+          
+          # Executa o dump do projeto vinculado de forma totalmente automatizada
           supabase db dump --linked -f "$BACKUP_FILE"
 
       - name: Commit and Push Backup to Repository
