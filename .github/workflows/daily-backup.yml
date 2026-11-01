@@ -30,26 +30,22 @@ jobs:
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
-          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: |
           set -euo pipefail
-          echo "Supabase CLI version:"
+          
+          echo "Atualizando a Supabase CLI para a versão mais recente..."
+          npm install -g supabase --unsafe-perm=true || true
+
+          echo "Supabase CLI version atualizada:"
           supabase --version
 
           mkdir -p backups
           TIMESTAMP="$(date +'%Y-%m-%d_%H-%M-%S')"
           BACKUP_FILE="backups/backup_${TIMESTAMP}.sql"
 
-          if supabase db dump --help | grep -q -- '--project-ref'; then
-            echo "Using --project-ref mode"
-            supabase db dump --project-ref "$SUPABASE_PROJECT_ID" -f "$BACKUP_FILE"
-          elif [ -n "${SUPABASE_DB_URL:-}" ]; then
-            echo "Using --db-url mode"
-            supabase db dump --db-url "$SUPABASE_DB_URL" -f "$BACKUP_FILE"
-          else
-            echo "Supabase CLI does not support --project-ref and no SUPABASE_DB_URL secret was provided." >&2
-            exit 1
-          fi
+          # Executa o dump utilizando a conexão direta segura via senha do banco
+          supabase db dump --db-url "postgresql://postgres:${SUPABASE_DB_PASSWORD}@db.${SUPABASE_PROJECT_ID}.supabase.co:5432/postgres" -f "$BACKUP_FILE"
 
       - name: Commit and Push Backup to Repository
         env:
