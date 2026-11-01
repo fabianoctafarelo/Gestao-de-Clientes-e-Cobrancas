@@ -19,7 +19,7 @@ jobs:
         with:
           supabase-version: latest
      
-      - name: Generate Database Dump
+     - name: Generate Database Dump
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
@@ -28,7 +28,7 @@ jobs:
           mkdir -p backups
           TIMESTAMP=$(date +'%Y-%m-%d_%H-%M-%S')
           
-          # Realiza o dump usando a flag --db-url de forma limpa
+          # Executa o dump garantindo o host correto do banco do Supabase
           supabase db dump --db-url "postgresql://postgres:${{ secrets.SUPABASE_DB_PASSWORD }}@db.${{ secrets.SUPABASE_PROJECT_ID }}.supabase.co:5432/postgres" -f "backups/backup_$TIMESTAMP.sql"
 
       - name: Commit and Push Backup to Repository
