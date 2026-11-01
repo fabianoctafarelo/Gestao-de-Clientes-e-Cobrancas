@@ -2,7 +2,7 @@ name: Daily Database Backup
 
 on:
   schedule:
-    - cron: '0 0 * * *'
+    - cron: "0 0 * * *"
   workflow_dispatch:
 
 permissions:
@@ -13,6 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    timeout-minutes: 20
 
     steps:
       - name: Checkout repository
@@ -31,25 +32,28 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
-          PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        shell: bash
         run: |
           set -euo pipefail
-          
+
+          : "${SUPABASE_ACCESS_TOKEN:?Missing SUPABASE_ACCESS_TOKEN}"
+          : "${SUPABASE_PROJECT_ID:?Missing SUPABASE_PROJECT_ID}"
+          : "${SUPABASE_DB_PASSWORD:?Missing SUPABASE_DB_PASSWORD}"
+
           mkdir -p backups
-          TIMESTAMP="$(date +'%Y-%m-%d_%H-%M-%S')"
+          TIMESTAMP="$(date -u +'%Y-%m-%d_%H-%M-%S')"
           BACKUP_FILE="backups/backup_${TIMESTAMP}.sql"
 
-          echo "Vinculando projeto e gerando backup..."
-
-          # Vincula o projeto passando a senha explicitamente para evitar prompts
+          echo "Vinculando projeto ao Supabase..."
           supabase link --project-ref "$SUPABASE_PROJECT_ID" --password "$SUPABASE_DB_PASSWORD"
 
-          # Executa o dump utilizando o projeto vinculado
-          supabase db dump --linked -f "$BACKUP_FILE"
+          echo "Gerando dump do banco..."
+          supabase db dump --linked --file "$BACKUP_FILE"
 
       - name: Commit and Push Backup to Repository
         env:
           GITHUB_TOKEN: ${{ secrets.BACKUP_PAT || github.token }}
+        shell: bash
         run: |
           set -euo pipefail
 
@@ -61,7 +65,7 @@ jobs:
           git add backups/
 
           if ! git diff --cached --quiet; then
-            git commit -m "chore: automated daily database backup $(date +'%Y-%m-%d')"
+            git commit -m "chore: automated daily database backup $(date -u +'%Y-%m-%d')"
             git push origin HEAD:${{ github.ref_name }}
           else
             echo "No new backup to commit."
