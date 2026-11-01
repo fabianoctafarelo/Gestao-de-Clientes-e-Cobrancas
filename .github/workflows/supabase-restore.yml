@@ -1,0 +1,87 @@
+name: Supabase Database Restore
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_restore:
+        description: 'Digite "SIM" para confirmar a restauração (atenção: sobrescreve dados atuais)'
+        required: true
+        default: 'NAO'
+
+jobs:
+  run_db_restore:
+    runs-on: ubuntu-latest
+
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+      SUPABASE_DB_URL: postgresql://postgres.${{ secrets.SUPABASE_PROJECT_ID }}:${{ secrets.SUPABASE_DB_PASSWORD }}@aws-0-us-east-1.pooler.supabase.com:6543/postgres
+
+    steps:
+      - name: Verify confirmation
+        run: |
+          if [ "${{ github.event.inputs.confirm_restore }}" != "SIM" ]; then
+            echo "Erro: Você precisa digitar 'SIM' para confirmar a restauração."
+            exit 1
+          fi
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Link Supabase Project
+        run: supabase link --project-ref "$PROJECT_ID"
+
+      - name: Find latest backup file
+        id: find_backup
+        run: |
+          # Procura pelo arquivo .tar.gz mais recente dentro da pasta prisma/backups/
+          LATEST_BACKUP=$(ls -t prisma/backups/*.tar.gz | head -n 1)
+          
+          if [ -z "$LATEST_BACKUP" ]; then
+            echo "Erro: Nenhum arquivo de backup encontrado na pasta prisma/backups/!"
+            exit 1
+          fi
+          
+          echo "Encontrado backup mais recente: $LATEST_BACKUP"
+          echo "backup_file=$LATEST_BACKUP" >> $GITHUB_OUTPUT
+
+      - name: Extract backup package
+        run: |
+          mkdir -p extracted_backup
+          tar -xzf "${{ steps.find_backup.outputs.backup_file }}" -C extracted_backup
+
+      - name: Install PostgreSQL client (psql)
+        run: |
+          sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Restore Database (Schema and Data)
+        run: |
+          echo "Iniciando a restauração do banco de dados..."
+          
+          # Desativa temporariamente chaves estrangeiras para evitar conflitos na importação
+          psql "$SUPABASE_DB_URL" -c "SET session_replication_role = 'replica';"
+
+          # 1. Restaura Schema (se existir o arquivo)
+          if [ -f "extracted_backup/schema.sql" ]; then
+            echo "Aplicando schema..."
+            psql "$SUPABASE_DB_URL" -f "extracted_backup/schema.sql"
+          fi
+
+          # 2. Restaura Dados (se existir o arquivo)
+          if [ -f "extracted_backup/data.sql" ]; then
+            echo "Aplicando dados..."
+            psql "$SUPABASE_DB_URL" -f "extracted_backup/data.sql"
+          fi
+
+          # Reativa as chaves estrangeiras
+          psql "$SUPABASE_DB_URL" -c "SET session_replication_role = 'origin';"
+          
+          echo "Restauração concluída com sucesso!"
+
+      - name: Clean up temporary files
+        run: rm -rf extracted_backup
