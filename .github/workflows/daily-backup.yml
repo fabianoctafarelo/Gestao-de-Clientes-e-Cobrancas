@@ -24,7 +24,7 @@ jobs:
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
         with:
-          supabase-version: 1.150.0
+          supabase-version: latest
 
       - name: Generate Database Dump
         env:
@@ -33,7 +33,6 @@ jobs:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
         run: |
           set -euo pipefail
-
           echo "Supabase CLI version:"
           supabase --version
 
