@@ -35,23 +35,15 @@ jobs:
         run: |
           set -euo pipefail
           
+          # Força o uso de servidores DNS públicos estáveis no runner para evitar falhas de rota
+          echo "nameserver 8.8.8.8" | sudo tee /etc/resolv.conf > /dev/null
+
           mkdir -p backups
           TIMESTAMP="$(date +'%Y-%m-%d_%H-%M-%S')"
           BACKUP_FILE="backups/backup_${TIMESTAMP}.sql"
 
-          # Resolve o host para IP v4 explicitamente antes de passar para o pg_dump
-          DB_HOST="db.${SUPABASE_PROJECT_ID}.supabase.co"
-          IPV4_ADDR=$(getent ahosts "$DB_HOST" | awk '{print $1}' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' | head -n 1)
-          
-          if [ -z "$IPV4_ADDR" ]; then
-            echo "Erro: Não foi possível resolver o IP IPv4 para $DB_HOST"
-            exit 1
-          fi
-
-          echo "Conectando ao banco via IPv4 forçado: $IPV4_ADDR"
-
-          # Executa o dump utilizando o IP IPv4 fixo para evitar o erro de IPv6 unreachable
-          supabase db dump --db-url "postgresql://postgres:${SUPABASE_DB_PASSWORD}@${IPV4_ADDR}:5432/postgres?sslmode=require" -f "$BACKUP_FILE"
+          # Executa o dump utilizando o domínio padrão do Supabase com SSL obrigatório
+          supabase db dump --db-url "postgresql://postgres:${SUPABASE_DB_PASSWORD}@db.${SUPABASE_PROJECT_ID}.supabase.co:5432/postgres?sslmode=require" -f "$BACKUP_FILE"
 
       - name: Commit and Push Backup to Repository
         env:
