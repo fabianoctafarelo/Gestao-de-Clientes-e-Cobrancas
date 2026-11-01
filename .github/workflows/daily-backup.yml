@@ -2,17 +2,24 @@ name: Daily Database Backup
 
 on:
   schedule:
-    # Executa todos os dias à meia-noite (UTC)
     - cron: '0 0 * * *'
-  # Permite rodar manualmente a partir da aba Actions do GitHub
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   backup:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+          fetch-depth: 0
 
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
@@ -24,16 +31,27 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
         run: |
+          set -e
           mkdir -p backups
           TIMESTAMP=$(date +'%Y-%m-%d_%H-%M-%S')
-          
-          # Realiza o dump usando o projeto e o token de acesso de forma nativa
           supabase db dump --project-ref "$SUPABASE_PROJECT_ID" -f "backups/backup_$TIMESTAMP.sql"
 
       - name: Commit and Push Backup to Repository
+        env:
+          GITHUB_TOKEN: ${{ secrets.BACKUP_PAT || github.token }}
         run: |
+          set -e
+
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+          git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git"
+
           git add backups/
-          git diff --cached --quiet || git commit -m "chore: automated daily database backup $(date +'%Y-%m-%d')"
-          git push
+
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: automated daily database backup $(date +'%Y-%m-%d')"
+            git push origin HEAD:${GITHUB_REF_NAME}
+          else
+            echo "No new backup to commit."
+          fi
