@@ -24,31 +24,25 @@ jobs:
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
         with:
-          supabase-version: latest
-
-      - name: Verify Supabase CLI
-        run: supabase --version
+          supabase-version: 1.150.0
 
       - name: Generate Database Dump
         env:
-          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
         run: |
-          set -euo pipefail
-
-          if [ -z "${SUPABASE_DB_URL:-}" ]; then
-            echo "::error::SUPABASE_DB_URL secret is not set."
-            exit 1
-          fi
-
+          set -eux
+          supabase --version
           mkdir -p backups
           TIMESTAMP=$(date +'%Y-%m-%d_%H-%M-%S')
-          supabase db dump --db-url "$SUPABASE_DB_URL" -f "backups/backup_$TIMESTAMP.sql"
+          supabase db dump --project-ref "$SUPABASE_PROJECT_ID" \
+            -f "backups/backup_$TIMESTAMP.sql"
 
       - name: Commit and Push Backup to Repository
         env:
           GITHUB_TOKEN: ${{ secrets.BACKUP_PAT || github.token }}
         run: |
-          set -euo pipefail
+          set -e
 
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
@@ -59,14 +53,7 @@ jobs:
 
           if ! git diff --cached --quiet; then
             git commit -m "chore: automated daily database backup $(date +'%Y-%m-%d')"
-
-            BRANCH="${GITHUB_REF_NAME:-$(git branch --show-current)}"
-            if [ -z "$BRANCH" ]; then
-              echo "::error::Unable to determine the branch to push to."
-              exit 1
-            fi
-
-            git push origin "HEAD:$BRANCH"
+            git push origin HEAD:${GITHUB_REF_NAME}
           else
             echo "No new backup to commit."
           fi
