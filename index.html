@@ -46,7 +46,7 @@ const K='fono_v1';
 // Cole aqui os dados do seu projeto Supabase (veja o LEIAME). Se deixar vazio, o site pede na primeira abertura.
 const SUPABASE_URL='';
 const SUPABASE_ANON_KEY='';
-const DEF='Olá, {responsavel}! Tudo bem? Seguem os dados para fins de pagamento reference ao atendimento fonoaudiológico do(a) {paciente}: \n\n- Data do atendimento: {data}\n- Valor: {valor} \n - Chave Pix: 294.126.868-54 \n\n Favor enviar por aqui o comprovante de pagamento. Assim que recebê-lo eu encaminho o relatório de atendimento.\n\n Obrigada!';
+const DEF='Olá, {responsavel}! Tudo bem? Seguem os dados para fins de pagamento reference ao atendimento fonoaudiológico do(a) {paciente}: \n\n- Data do atendimento: {data}\n- Valor: {valor} \n - Chave Pix: 294.126.868-54 \n\n Favor enviar por aqui o comprovante de pagamento. Assim que recebê-lo eu encaminho o recibo.\n\n Obrigada!';
 let S={patients:[],sessions:[],tpl:DEF},db=null,ready=false,knownTpl=DEF;
 const known={patients:new Map(),sessions:new Map()};
 const $st=(m,bad)=>{const e=document.getElementById('st');if(e){e.textContent=m;e.style.color=bad?'var(--bad)':'';e.style.fontWeight=bad?'600':''}};
