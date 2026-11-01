@@ -36,9 +36,7 @@ jobs:
       - name: Create backup folder
         run: |
           TIMESTAMP=$(date +"%Y-%m-%d_%H-%M-%S")
-
           mkdir -p prisma/backups/$TIMESTAMP
-
           echo "TIMESTAMP=$TIMESTAMP" >> $GITHUB_ENV
 
       - name: Backup roles
@@ -78,9 +76,7 @@ jobs:
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-
           git add prisma/backups/
-
           git diff --staged --quiet || \
           git commit -m "chore: database backup $TIMESTAMP"
 
