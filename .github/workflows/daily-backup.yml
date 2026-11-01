@@ -37,12 +37,12 @@ jobs:
           TIMESTAMP="$(date +'%Y-%m-%d_%H-%M-%S')"
           BACKUP_FILE="backups/backup_${TIMESTAMP}.sql"
 
-          echo "Iniciando backup via API/CLI (porta HTTPS 443)..."
+          echo "Vinculando projeto e gerando backup via API segura..."
 
-          # Vincula o projeto usando o token de acesso (sem passar pela porta 5432 bloqueada)
+          # Vincula o projeto ao runner usando o Access Token
           supabase link --project-ref "$SUPABASE_PROJECT_ID" --password ""
 
-          # Executa o dump utilizando a infraestrutura gerenciada do Supabase
+          # Executa o dump nativo da CLI utilizando o projeto vinculado
           supabase db dump --linked -f "$BACKUP_FILE"
 
       - name: Commit and Push Backup to Repository
