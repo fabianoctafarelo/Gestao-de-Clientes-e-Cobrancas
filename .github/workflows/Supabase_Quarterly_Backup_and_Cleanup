@@ -1,0 +1,109 @@
+name: Supabase Quarterly Backup and Cleanup
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 3 1 */3 *" # Roda no dia 1º de janeiro, abril, julho e outubro às 03:00 UTC (a cada 3 meses)
+
+jobs:
+  run_quarterly_maintenance:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+      SUPABASE_DB_URL: postgresql://postgres.${{ secrets.SUPABASE_PROJECT_ID }}:${{ secrets.SUPABASE_DB_PASSWORD }}@aws-0-us-east-1.pooler.supabase.com:6543/postgres
+      BACKUP_ENABLED: ${{ vars.BACKUP_ENABLED }}
+
+    steps:
+      - name: Check if backups are enabled
+        run: |
+          if [ "$BACKUP_ENABLED" != "true" ]; then
+            echo "Backups and maintenance are disabled."
+            exit 0
+          fi
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # --- MANTÉM O SUPABASE ATIVO ---
+      - name: Keep Supabase Alive (Ping API)
+        run: |
+          echo "Enviando sinal de atividade para o Supabase..."
+          curl -I "https://${{ secrets.SUPABASE_PROJECT_ID }}.supabase.co/rest/v1/" \
+            -H "apikey: ${{ secrets.SUPABASE_ACCESS_TOKEN }}" || true
+
+      - name: Install Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Link Supabase Project
+        run: supabase link --project-ref "$PROJECT_ID"
+
+      - name: Create backup folder
+        run: |
+          TIMESTAMP=$(date +"%Y-%m-%d_%H-%M-%S")
+          mkdir -p prisma/backups/$TIMESTAMP
+          echo "TIMESTAMP=$TIMESTAMP" >> $GITHUB_ENV
+
+      - name: Backup roles
+        run: |
+          supabase db dump --db-url "$SUPABASE_DB_URL" --role-only -f prisma/backups/$TIMESTAMP/roles.sql
+
+      - name: Backup schema
+        run: |
+          supabase db dump --db-url "$SUPABASE_DB_URL" -f prisma/backups/$TIMESTAMP/schema.sql
+
+      - name: Backup data
+        run: |
+          supabase db dump --db-url "$SUPABASE_DB_URL" --data-only --use-copy -f prisma/backups/$TIMESTAMP/data.sql
+
+      - name: Compress backup
+        run: |
+          tar -czf prisma/backups/${TIMESTAMP}.tar.gz \
+            -C prisma/backups/$TIMESTAMP .
+
+      - name: Upload backup artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: supabase-backup-${{ env.TIMESTAMP }}
+          path: prisma/backups/${{ env.TIMESTAMP }}.tar.gz
+          retention-days: 90
+
+      # --- ROTINA DE LIMPEZA DOS DADOS MAIS ANTIGOS (> 3 MESES) ---
+      - name: Clean up old data (> 3 months)
+        run: |
+          echo "Iniciando a limpeza de dados com mais de 3 meses..."
+          
+          # Instalamos o cliente postgres (psql) para rodar o comando de limpeza direto no banco
+          sudo apt-get update && sudo apt-get install -y postgresql-client
+          
+          # Exemplo de comando SQL para apagar dados com mais de 3 meses (90 dias) baseados em uma coluna de data (ex: created_at)
+          # ATENÇÃO: Substitua 'sessions' e 'patients' (ou adicione suas tabelas reais) e a coluna de data correspondente.
+          psql "$SUPABASE_DB_URL" -c "
+            -- Desativa temporariamente travas para otimizar
+            SET session_replication_role = 'replica';
+            
+            -- Exemplo de exclusão em tabela de sessões (ajuste o nome da tabela e da coluna de data conforme seu schema)
+            -- DELETE FROM sessions WHERE created_at < NOW() - INTERVAL '3 months';
+            
+            -- Reativa as travas
+            SET session_replication_role = 'origin';
+          "
+          echo "Limpeza concluída com sucesso."
+
+      - name: Commit backup files
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add prisma/backups/
+          git diff --staged --quiet || \
+          git commit -m "chore: quarterly database backup and cleanup $TIMESTAMP"
+
+      - name: Push backup files
+        run: |
+          git push origin HEAD:${{ github.ref_name }}
