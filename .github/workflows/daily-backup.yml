@@ -35,7 +35,7 @@ jobs:
           echo "Enviando sinal de atividade para o Supabase..."
           curl -I "https://${{ secrets.SUPABASE_PROJECT_ID }}.supabase.co/rest/v1/" \
             -H "apikey: ${{ secrets.SUPABASE_ACCESS_TOKEN }}" || true
-      --------------------------------------------
+      # --------------------------------------------
 
       - name: Install Supabase CLI
         uses: supabase/setup-cli@v1
@@ -69,7 +69,7 @@ jobs:
             -C prisma/backups/$TIMESTAMP .
 
       - name: Upload backup artifact
-        uses: upload-artifact@v4
+        uses: actions/upload-artifact@v4
         with:
           name: supabase-backup-${{ env.TIMESTAMP }}
           path: prisma/backups/${{ env.TIMESTAMP }}.tar.gz
