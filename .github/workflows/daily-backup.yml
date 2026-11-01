@@ -35,7 +35,8 @@ jobs:
           version: latest
 
       - name: Link Supabase Project
-        run: supabase link --project-ref "$PROJECT_ID" --password "${{ secrets.SUPABASE_DB_PASSWORD }}"
+        run: |
+          supabase link --project-ref "$PROJECT_ID" --password "${{ secrets.SUPABASE_DB_PASSWORD }}"
 
       - name: Create backup folder
         run: |
@@ -45,21 +46,15 @@ jobs:
 
       - name: Backup roles
         run: |
-          supabase db dump \
-            --role-only \
-            -f prisma/backups/$TIMESTAMP/roles.sql
+          supabase db dump --role-only -f prisma/backups/$TIMESTAMP/roles.sql
 
       - name: Backup schema
         run: |
-          supabase db dump \
-            -f prisma/backups/$TIMESTAMP/schema.sql
+          supabase db dump -f prisma/backups/$TIMESTAMP/schema.sql
 
       - name: Backup data
         run: |
-          supabase db dump \
-            --data-only \
-            --use-copy \
-            -f prisma/backups/$TIMESTAMP/data.sql
+          supabase db dump --data-only --use-copy -f prisma/backups/$TIMESTAMP/data.sql
 
       - name: Compress backup
         run: |
