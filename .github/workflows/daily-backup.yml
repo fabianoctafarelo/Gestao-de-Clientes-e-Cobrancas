@@ -42,8 +42,9 @@ jobs:
           TIMESTAMP="$(date -u +'%Y-%m-%d_%H-%M-%S')"
           BACKUP_FILE="backups/backup_${TIMESTAMP}.sql"
 
-          echo "Gerando dump do banco de dados via Supabase CLI..."
-          SUPABASE_DB_URL="postgresql://postgres:${SUPABASE_DB_PASSWORD}@db.${SUPABASE_PROJECT_ID}.supabase.co:5432/postgres"
+          echo "Gerando dump do banco de dados via Transaction Pooler (IPv4)..."
+          # Alterado para a porta 6543 (Transaction Pooler do Supabase)
+          SUPABASE_DB_URL="postgresql://postgres.${SUPABASE_PROJECT_ID}:${SUPABASE_DB_PASSWORD}@aws-0-sa-east-1.pooler.supabase.co:6543/postgres"
 
           supabase db dump --db-url "$SUPABASE_DB_URL" --file "$BACKUP_FILE"
 
