@@ -84,7 +84,7 @@ const resp=p=>p.mesmo?p.nome:(p.resp||p.nome);
 const fmtCpf=s=>String(s||'').replace(/\D/g,'').slice(0,11).replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d{1,2})$/,'$1-$2');
 const cpfOk=s=>{const d=String(s).replace(/\D/g,'');if(d.length!==11||/^(\d)\1+$/.test(d))return false;for(const n of [9,10]){let t=0;for(let i=0;i<n;i++)t+=d[i]*(n+1-i);if((t*10)%11%10!==+d[n])return false}return true};
 const val=id=>{const e=document.getElementById(id);return e?e.value:''};
-let ano=null;
+let ano=null,qBusca='';
 let tab='cob',editId=null,armed='',legacy=null,viewId=null,justSaved=0,lastId=null,picking=false,pend=null,recId=null,rec=null,lastBlob=null,rmsg='';
 const fmtDur=n=>Math.floor(n/60)+':'+String(n%60).padStart(2,'0');
 const setMsg=t=>{rmsg=t;const e=document.getElementById('rmsg');if(e){e.textContent=t;if(t)e.scrollIntoView({block:'nearest'})}};
@@ -147,6 +147,22 @@ function vRecebido(){
   <div class="mtot"><span>Total de ${ano} <span class="mut" style="font-weight:400">(${nAno} atendimentos)</span></span><span>${brl(totAno)}</span></div>
   <div class="mut" style="margin-top:6px">Valores por data de pagamento; entre parênteses, o nº de atendimentos pagos.</div></div>`;
 }
+const norm=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+const dig=s=>String(s||'').replace(/\D/g,'');
+function buscaRes(){
+  const q=qBusca.trim();
+  if(q.length<2)return '<div class="mut">Digite ao menos 2 caracteres.</div>';
+  const qn=norm(q),qd=dig(q);
+  const r=S.patients.filter(p=>norm(p.nome).includes(qn)||norm(resp(p)).includes(qn)||(qd.length>=3&&(dig(p.cpfpac).includes(qd)||dig(p.cpf).includes(qd))));
+  if(!r.length)return '<div class="card">Nenhum cadastro encontrado.</div>';
+  const L=(k,v)=>`<div><span class="mut">${k}</span><br>${esc(v||'—')}</div>`;
+  return `<h2>Resultado (${r.length})</h2>`+r.map(p=>`<div class="card"><div class="top"><b>${esc(p.nome)}</b><span class="mut">${esc(p.sexo)} · ${age(p.nasc)}</span></div>
+  <div class="grid" style="margin-top:6px">${L('Nascimento',fd(p.nasc))}${L('CPF do paciente',p.cpfpac)}${L('Responsável financeiro',p.mesmo?p.nome+' (o próprio paciente)':p.resp)}${L('CPF do responsável',p.cpf)}${L('WhatsApp',p.tel)}${L('Valor padrão da sessão',brl(p.valor))}${L('Cobrança',(p.off||0)+' dia(s) após o atendimento')}</div>
+  <div class="btns"><button data-a="buscaedit" data-id="${p.id}">Editar cadastro</button></div></div>`).join('');
+}
+function vBusca(){
+  return `<div class="card"><b>Buscar cadastro</b><label>Nome do paciente, nome do responsável, CPF do paciente ou CPF do responsável</label><input id="q" autocomplete="off" placeholder="Digite o nome ou o CPF" value="${esc(qBusca)}"></div><div id="qres">${buscaRes()}</div>`;
+}
 function vAtd(){
   if(!S.patients.length)return '<div class="card">Cadastre um paciente primeiro, na aba Cadastro.</div>';
   const p0=S.patients[0],list=[...S.sessions].sort((a,b)=>b.data.localeCompare(a.data));
@@ -199,9 +215,9 @@ function migBar(){
   el.innerHTML=(np+ns)?`<div class="card" style="border-color:#d97706"><b>Dados antigos encontrados neste navegador</b><div class="mut">${np} paciente(s) e ${ns} atendimento(s) estão guardados só aqui. Copie para o banco de dados para não perdê-los.</div><div class="btns"><button class="pri" data-a="migrar">Copiar para o banco de dados</button></div></div>`:'';
 }
 function render(){
-  const T=[['pac','Cadastro'],['atd','Atendimentos'],['cob','Cobranças'],['rec','Dashboard'],['cfg','Mensagem']];
+  const T=[['pac','Cadastro'],['atd','Atendimentos'],['cob','Cobranças'],['rec','Dashboard'],['bus','Busca'],['cfg','Mensagem']];
   $('#nav').innerHTML=T.map(([k,n])=>`<button class="${k===tab?'on':''}" data-a="tab" data-id="${k}">${n}</button>`).join('');
-  $('#app').innerHTML={cob:vCob,rec:vRecebido,atd:vAtd,pac:vPac,cfg:vCfg}[tab]();migBar();
+  $('#app').innerHTML={cob:vCob,rec:vRecebido,bus:vBusca,atd:vAtd,pac:vPac,cfg:vCfg}[tab]();migBar();
 }
 document.addEventListener('click',e=>{
   const b=e.target.closest('[data-a]');if(!b||['INPUT','SELECT','TEXTAREA'].includes(b.tagName))return;
@@ -217,6 +233,7 @@ document.addEventListener('click',e=>{
   else if(a==='delses'){S.sessions=S.sessions.filter(x=>x.id!==id);save()}
   else if(a==='delpat'){S.patients=S.patients.filter(x=>x.id!==id);S.sessions=S.sessions.filter(x=>x.pid!==id);save()}
   else if(a==='editpat'){editId=id}
+  else if(a==='buscaedit'){tab='pac';editId=id}
   else if(a==='cancelpat'){editId=null}
   else if(a==='savepat'){
     const mesmo=$('#p_mesmo').checked,g=k=>val(k).trim(),falta=[];
@@ -259,7 +276,7 @@ document.addEventListener('change',e=>{
   else if(a==='tpl'){S.tpl=t.value||DEF;save()}
   else if(a==='trsave'||a==='ressave'){const s=S.sessions.find(x=>x.id===t.dataset.id);if(s){if(a==='trsave')s.transc=t.value;else s.resumo=t.value;save()}}
 });
-document.addEventListener('input',e=>{if(e.target.classList)e.target.classList.remove('err');if((e.target.id==='p_cpf'||e.target.id==='p_cpfpac'))e.target.value=fmtCpf(e.target.value)});
+document.addEventListener('input',e=>{if(e.target.classList)e.target.classList.remove('err');if(e.target.id==='q'){qBusca=e.target.value;const r=document.getElementById('qres');if(r)r.innerHTML=buscaRes()}if((e.target.id==='p_cpf'||e.target.id==='p_cpfpac'))e.target.value=fmtCpf(e.target.value)});
 let sbClient=null;
 function getCfg(){
   if(SUPABASE_URL&&SUPABASE_ANON_KEY)return{url:SUPABASE_URL,key:SUPABASE_ANON_KEY};
