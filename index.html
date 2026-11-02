@@ -33,6 +33,11 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .sum{display:grid;grid-template-columns:1fr 1fr;gap:8px}.sum div{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:10px}.sum b{display:block;font-size:18px}
 textarea{min-height:90px}
+.mrow{display:grid;grid-template-columns:34px 1fr auto;gap:8px;align-items:center;padding:5px 0;border-top:1px solid var(--bd)}
+.mrow.cur{font-weight:600}
+.bar{background:var(--bg);border-radius:99px;height:8px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--acc)}
+.mtot{display:flex;justify-content:space-between;gap:8px;margin-top:4px;padding-top:8px;border-top:2px solid var(--bd);font-weight:600}
 </style></head><body><main>
 <div class="top"><h1>Pacientes e Cobranças</h1><div><button id="lo" data-a="logout" style="display:none">Sair</button></div></div>
 <div id="st" class="mut"></div>
@@ -79,6 +84,7 @@ const resp=p=>p.mesmo?p.nome:(p.resp||p.nome);
 const fmtCpf=s=>String(s||'').replace(/\D/g,'').slice(0,11).replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d{1,2})$/,'$1-$2');
 const cpfOk=s=>{const d=String(s).replace(/\D/g,'');if(d.length!==11||/^(\d)\1+$/.test(d))return false;for(const n of [9,10]){let t=0;for(let i=0;i<n;i++)t+=d[i]*(n+1-i);if((t*10)%11%10!==+d[n])return false}return true};
 const val=id=>{const e=document.getElementById(id);return e?e.value:''};
+let ano=null;
 let tab='cob',editId=null,armed='',legacy=null,viewId=null,justSaved=0,lastId=null,picking=false,pend=null,recId=null,rec=null,lastBlob=null,rmsg='';
 const fmtDur=n=>Math.floor(n/60)+':'+String(n%60).padStart(2,'0');
 const setMsg=t=>{rmsg=t;const e=document.getElementById('rmsg');if(e){e.textContent=t;if(t)e.scrollIntoView({block:'nearest'})}};
@@ -129,8 +135,20 @@ function vCob(){
   ${blk('Cobranças agendadas',wait,'Nenhuma cobrança agendada.')}
   ${blk('Já pagos (últimos 30)',paid,'Nenhum pagamento registrado.')}`;
 }
+function vRecebido(){
+  const m=today().slice(0,7),MES=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  const sum=a=>a.reduce((x,s)=>x+Number(s.valor||0),0),pagos=S.sessions.filter(s=>s.pago);
+  const anos=[...new Set([m.slice(0,4),...pagos.map(s=>s.pago.slice(0,4))])].sort().reverse();
+  if(!ano||!anos.includes(ano))ano=m.slice(0,4);
+  const porMes=MES.map((_,i)=>{const k=ano+'-'+String(i+1).padStart(2,'0'),a=pagos.filter(s=>s.pago.slice(0,7)===k);return{k,n:a.length,v:sum(a)}});
+  const totAno=porMes.reduce((x,r)=>x+r.v,0),nAno=porMes.reduce((x,r)=>x+r.n,0),mx=Math.max(...porMes.map(r=>r.v),1);
+  return `<h2>Recebido mês a mês</h2><div class="card"><select id="ano" data-a="ano" style="width:auto;margin-bottom:6px">${anos.map(y=>`<option${y===ano?' selected':''}>${y}</option>`).join('')}</select>
+  ${porMes.map((r,i)=>`<div class="mrow${r.k===m?' cur':''}"><span>${MES[i]}</span><span class="bar"><i style="width:${(r.v/mx*100).toFixed(1)}%"></i></span><span>${brl(r.v)}${r.n?` <span class="mut">(${r.n})</span>`:''}</span></div>`).join('')}
+  <div class="mtot"><span>Total de ${ano} <span class="mut" style="font-weight:400">(${nAno} atendimentos)</span></span><span>${brl(totAno)}</span></div>
+  <div class="mut" style="margin-top:6px">Valores por data de pagamento; entre parênteses, o nº de atendimentos pagos.</div></div>`;
+}
 function vAtd(){
-  if(!S.patients.length)return '<div class="card">Cadastre um paciente primeiro, na aba Pacientes.</div>';
+  if(!S.patients.length)return '<div class="card">Cadastre um paciente primeiro, na aba Cadastro.</div>';
   const p0=S.patients[0],list=[...S.sessions].sort((a,b)=>b.data.localeCompare(a.data));
   return `<div class="card"><b>Novo atendimento</b>
   <label>Paciente</label><select id="a_pid" data-a="a_pid">${S.patients.map(p=>`<option value="${p.id}">${esc(p.nome)}</option>`).join('')}</select>
@@ -180,9 +198,9 @@ function migBar(){
   el.innerHTML=(np+ns)?`<div class="card" style="border-color:#d97706"><b>Dados antigos encontrados neste navegador</b><div class="mut">${np} paciente(s) e ${ns} atendimento(s) estão guardados só aqui. Copie para o banco de dados para não perdê-los.</div><div class="btns"><button class="pri" data-a="migrar">Copiar para o banco de dados</button></div></div>`:'';
 }
 function render(){
-  const T=[['cob','Cobranças'],['atd','Atendimentos'],['pac','Pacientes'],['cfg','Mensagem']];
+  const T=[['pac','Cadastro'],['atd','Atendimentos'],['cob','Cobranças'],['rec','Recebimentos'],['cfg','Mensagem']];
   $('#nav').innerHTML=T.map(([k,n])=>`<button class="${k===tab?'on':''}" data-a="tab" data-id="${k}">${n}</button>`).join('');
-  $('#app').innerHTML={cob:vCob,atd:vAtd,pac:vPac,cfg:vCfg}[tab]();migBar();
+  $('#app').innerHTML={cob:vCob,rec:vRecebido,atd:vAtd,pac:vPac,cfg:vCfg}[tab]();migBar();
 }
 document.addEventListener('click',e=>{
   const b=e.target.closest('[data-a]');if(!b||['INPUT','SELECT','TEXTAREA'].includes(b.tagName))return;
@@ -233,6 +251,7 @@ document.addEventListener('click',e=>{
 document.addEventListener('change',e=>{
   const t=e.target,a=t.dataset&&t.dataset.a;if(!a)return;
   if(a==='cobchg'){const s=S.sessions.find(x=>x.id===t.dataset.id);if(s&&t.value){s.cob=t.value;save();render()}}
+  else if(a==='ano'){ano=t.value;render()}
   else if(a==='a_pid'){const p=pat(t.value);if(p){$('#a_valor').value=p.valor||'';$('#a_off').value=p.off||0}}
   else if(a==='p_mesmo'){$('#p_respbox').style.display=t.checked?'none':'block'}
   else if(a==='tpl'){S.tpl=t.value||DEF;save()}
