@@ -161,9 +161,9 @@ function vCob(){
 }
 function vTop(){
   const t=today(),m={};
-  S.sessions.forEach(s=>{if(s.data>t)return;const p=pat(s.pid);if(!p)return;const o=m[p.id]||(m[p.id]={nome:p.nome,v:0,n:0});o.v+=Number(s.valor||0);o.n++});
+  S.sessions.forEach(s=>{if(s.data>t)return;const p=pat(s.pid);if(!p)return;const o=m[p.id]||(m[p.id]={nome:p.nome,nasc:p.nasc,v:0,n:0});o.v+=Number(s.valor||0);o.n++});
   const L=Object.values(m).sort((a,b)=>b.v-a.v||String(a.nome).localeCompare(String(b.nome))).slice(0,10),mx=Math.max(...L.map(x=>x.v),1);
-  const rows=L.map((x,i)=>`<div class="trow"><span class="rk">${i+1}º</span><div><div>${esc(x.nome)}</div><span class="bar"><i style="width:${(x.v/mx*100).toFixed(1)}%"></i></span></div><span class="tv">${brl(x.v)}<small class="mut">${x.n} atendimento${x.n===1?'':'s'}</small></span></div>`).join('');
+  const rows=L.map((x,i)=>`<div class="trow"><span class="rk">${i+1}º</span><div><div>${esc(x.nome)}${x.nasc?' ('+age(x.nasc)+')':''}</div><span class="bar"><i style="width:${(x.v/mx*100).toFixed(1)}%"></i></span></div><span class="tv">${brl(x.v)}<small class="mut">${x.n} atendimento${x.n===1?'':'s'}</small></span></div>`).join('');
   return `<h2>10 melhores pacientes por volume financeiro</h2><div class="card">${rows||'<div class="mut">Nenhum atendimento registrado.</div>'}<div class="mut" style="margin-top:6px">Ordem decrescente pela soma do valor dos atendimentos realizados até hoje (pagos ou não).</div></div>`;
 }
 function vRecebido(){
