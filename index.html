@@ -59,6 +59,11 @@ textarea{min-height:90px}
 .trow .bar{display:block;margin-top:4px}
 .tv{text-align:right;font-weight:600;white-space:nowrap}
 .tv small{display:block;font-weight:400;font-size:12px}
+.bday{display:grid;grid-template-columns:40px 1fr;gap:10px;align-items:center;padding:6px 0;border-top:1px solid var(--bd)}
+.bday:first-child{border-top:0}
+.bd-d{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;font-weight:700;background:var(--bg);border:2px solid var(--acc);color:var(--acc)}
+.bday.past .bd-d{border-color:var(--bd);color:var(--mut)}
+.bday.now .bd-d{background:var(--acc);color:var(--onacc)}
 </style></head><body><main>
 <div class="top"><h1>Pacientes e Cobranças</h1><div><button id="lo" data-a="logout" style="display:none">Sair</button></div></div>
 <div id="st" class="mut"></div>
@@ -166,6 +171,14 @@ function vTop(){
   const rows=L.map((x,i)=>`<div class="trow"><span class="rk">${i+1}º</span><div><div>${esc(x.nome)}${x.nasc?' ('+age(x.nasc)+')':''}</div><span class="bar"><i style="width:${(x.v/mx*100).toFixed(1)}%"></i></span></div><span class="tv">${brl(x.v)}<small class="mut">${x.n} atendimento${x.n===1?'':'s'}</small></span></div>`).join('');
   return `<h2>10 melhores pacientes por volume financeiro</h2><div class="card">${rows||'<div class="mut">Nenhum atendimento registrado.</div>'}<div class="mut" style="margin-top:6px">Ordem decrescente pela soma do valor dos atendimentos realizados até hoje (pagos ou não).</div></div>`;
 }
+function vNiver(){
+  const t=today(),mm=t.slice(5,7),dh=+t.slice(8,10),y=+t.slice(0,4);
+  const MESES=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  const L=S.patients.filter(p=>p.nasc&&p.nasc.slice(5,7)===mm).map(p=>({nome:p.nome,d:+p.nasc.slice(8,10),idade:y-(+p.nasc.slice(0,4))})).filter(x=>x.idade>=0).sort((a,b)=>a.d-b.d||String(a.nome).localeCompare(String(b.nome)));
+  const rows=L.map(x=>{const c=x.d<dh?'past':x.d===dh?'now':'',tx=x.d<dh?'completou':x.d===dh?'faz hoje':'completa',dd=String(x.d).padStart(2,'0');
+    return `<div class="bday ${c}"><span class="bd-d">${dd}</span><div><div>${esc(x.nome)}</div><div class="mut">${dd}/${mm} · ${tx} ${x.idade} ano${x.idade===1?'':'s'}</div></div></div>`}).join('');
+  return `<h2>Aniversariantes de ${MESES[+mm-1]} (${L.length})</h2><div class="card">${rows||'<div class="mut">Nenhum aniversariante neste mês.</div>'}<div class="mut" style="margin-top:6px">Em ordem de data. A idade é a que o paciente completa (ou completou) neste mês; os círculos cinza já passaram e o preenchido é hoje.</div></div>`;
+}
 function vRecebido(){
   const m=today().slice(0,7),MES=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
   const sum=a=>a.reduce((x,s)=>x+Number(s.valor||0),0),pagos=S.sessions.filter(s=>s.pago);
@@ -253,6 +266,7 @@ function vRel(){
   const tot=meses.reduce((x,m)=>x+m.v,0),cur=meses[11].v,prev=meses[10].v,nTot=meses.reduce((x,m)=>x+m.n,0);
   const varTxt=prev>0?((cur-prev)/prev*100>=0?'+':'')+((cur-prev)/prev*100).toFixed(1).replace('.',',')+'% em relação ao mês anterior':'sem faturamento no mês anterior para comparar';
   return `<h2>Número total de pacientes</h2><div class="card"><div class="big">${N}</div><div class="mut">paciente(s) cadastrado(s)</div></div>
+  ${vNiver()}
   <h2>Perfil dos pacientes por idade e sexo</h2><div class="card"><div>${leg}</div>${rows}<div class="mut" style="margin-top:6px">Número de pacientes em cada faixa etária (idade em anos completos).</div></div>
   <h2>Progressão da Produção mês a mês (R$)</h2><div class="card">${svg}
   <div class="mtot"><span>Últimos 12 meses <span class="mut" style="font-weight:400">(${nTot} atendimentos)</span></span><span>${brl(tot)}</span></div>
