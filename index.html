@@ -53,6 +53,12 @@ textarea{min-height:90px}
 .frow .bar{display:flex;height:14px}
 .lg{display:inline-flex;align-items:center;gap:5px;margin:0 12px 6px 0;font-size:13px}
 .lg i{width:10px;height:10px;border-radius:3px;display:inline-block}
+.trow{display:grid;grid-template-columns:30px 1fr auto;gap:8px;align-items:center;padding:6px 0;border-top:1px solid var(--bd)}
+.trow:first-child{border-top:0}
+.rk{font-weight:700;color:var(--acc)}
+.trow .bar{display:block;margin-top:4px}
+.tv{text-align:right;font-weight:600;white-space:nowrap}
+.tv small{display:block;font-weight:400;font-size:12px}
 </style></head><body><main>
 <div class="top"><h1>Pacientes e Cobranças</h1><div><button id="lo" data-a="logout" style="display:none">Sair</button></div></div>
 <div id="st" class="mut"></div>
@@ -152,6 +158,13 @@ function vCob(){
   ${blk(2,'s2','Enviadas, aguardando pagamento','Cobrança enviada: falta confirmar o pagamento',sent,'Nada em aberto.')}
   ${blk(3,'s3','Cobranças agendadas','Ainda não chegou a data de envio',wait,'Nenhuma cobrança agendada.')}
   ${blk(4,'s4','Já pagos (últimos 30)','Pagamentos confirmados',paid,'Nenhum pagamento registrado.')}`;
+}
+function vTop(){
+  const t=today(),m={};
+  S.sessions.forEach(s=>{if(s.data>t)return;const p=pat(s.pid);if(!p)return;const o=m[p.id]||(m[p.id]={nome:p.nome,v:0,n:0});o.v+=Number(s.valor||0);o.n++});
+  const L=Object.values(m).sort((a,b)=>b.v-a.v||String(a.nome).localeCompare(String(b.nome))).slice(0,10),mx=Math.max(...L.map(x=>x.v),1);
+  const rows=L.map((x,i)=>`<div class="trow"><span class="rk">${i+1}º</span><div><div>${esc(x.nome)}</div><span class="bar"><i style="width:${(x.v/mx*100).toFixed(1)}%"></i></span></div><span class="tv">${brl(x.v)}<small class="mut">${x.n} atendimento${x.n===1?'':'s'}</small></span></div>`).join('');
+  return `<h2>10 melhores pacientes por volume financeiro</h2><div class="card">${rows||'<div class="mut">Nenhum atendimento registrado.</div>'}<div class="mut" style="margin-top:6px">Ordem decrescente pela soma do valor dos atendimentos realizados até hoje (pagos ou não).</div></div>`;
 }
 function vRecebido(){
   const m=today().slice(0,7),MES=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
@@ -254,7 +267,7 @@ function migBar(){
 function render(){
   const T=[['pac','Cadastro'],['atd','Atendimentos'],['cob','Cobranças'],['rec','Dashboard'],['bus','Busca']];
   $('#nav').innerHTML=T.map(([k,n])=>`<button class="${k===tab?'on':''}" data-a="tab" data-id="${k}">${n}</button>`).join('');
-  $('#app').innerHTML={cob:vCob,rec:()=>vRel()+vRecebido(),bus:vBusca,atd:vAtd,pac:vPac}[tab]();migBar();
+  $('#app').innerHTML={cob:vCob,rec:()=>vRel()+vTop()+vRecebido(),bus:vBusca,atd:vAtd,pac:vPac}[tab]();migBar();
 }
 document.addEventListener('click',e=>{
   const b=e.target.closest('[data-a]');if(!b||['INPUT','SELECT','TEXTAREA'].includes(b.tagName))return;
