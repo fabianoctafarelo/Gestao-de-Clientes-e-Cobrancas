@@ -47,6 +47,12 @@ textarea{min-height:90px}
 .stage-v{text-align:right;font-weight:700;white-space:nowrap}
 .stage-v small{display:block;font-weight:400;font-size:12px;color:var(--mut)}
 .stage .card{border-left:4px solid var(--c)}
+.big{font-size:40px;font-weight:700;color:var(--acc);line-height:1.1}
+.frow{display:grid;grid-template-columns:52px 1fr 28px;gap:8px;align-items:center;padding:5px 0;border-top:1px solid var(--bd)}
+.frow span:last-child{text-align:right;font-weight:600}
+.frow .bar{display:flex;height:14px}
+.lg{display:inline-flex;align-items:center;gap:5px;margin:0 12px 6px 0;font-size:13px}
+.lg i{width:10px;height:10px;border-radius:3px;display:inline-block}
 </style></head><body><main>
 <div class="top"><h1>Pacientes e Cobranças</h1><div><button id="lo" data-a="logout" style="display:none">Sair</button></div></div>
 <div id="st" class="mut"></div>
@@ -211,14 +217,33 @@ function vPac(){
   <div class="mut">Responsável: ${p.mesmo?'o próprio paciente':esc(p.resp)} · CPF paciente ${esc(p.cpfpac||'não informado')} · CPF resp. ${esc(p.cpf||'não informado')} · ${esc(p.tel||'sem WhatsApp')} · ${brl(p.valor)} · cobrança ${p.off||0} dia(s) após</div>
   <div class="btns"><button data-a="editpat" data-id="${p.id}">Editar</button><button data-a="delpat" data-id="${p.id}">Excluir</button></div></div>`).join('')}`;
 }
-function vCfg(){
-  return `<div class="card"><b>Mensagem de cobrança</b><div class="mut">Campos: {responsavel} {paciente} {data} {valor}</div>
-  <textarea id="tpl" data-a="tpl">${esc(S.tpl)}</textarea></div>
-  <div class="card"><b>Backup</b><div class="mut">Os dados ficam no banco de dados Supabase. O plano gratuito não faz backup automático: copie o texto abaixo e guarde-o de vez em quando.</div>
-  <textarea id="bk" readonly>${esc(JSON.stringify(S))}</textarea>
-  <div class="btns"><button data-a="copy">Selecionar tudo</button></div>
-  <label>Restaurar backup (substitui os dados atuais)</label><textarea id="imp"></textarea>
-  <div class="btns"><button data-a="import">Restaurar</button><span id="impmsg" class="mut"></span></div></div>`;
+function vRel(){
+  const t=today(),P=S.patients,N=P.length;
+  const MES=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  const faixas=[['0–5',0,5],['6–12',6,12],['13–17',13,17],['18–39',18,39],['40–59',40,59],['60+',60,999]];
+  const sexos=[['Feminino','#db2777'],['Masculino','#2563eb'],['Outro','#d97706']];
+  const ageN=s=>{if(!s)return null;const b=new Date(s+'T12:00:00'),n=new Date();let a=n.getFullYear()-b.getFullYear();if(n<new Date(n.getFullYear(),b.getMonth(),b.getDate()))a--;return a};
+  const cnt=faixas.map(([l,a,b])=>{const r={l,tot:0};sexos.forEach(([x])=>r[x]=0);P.forEach(p=>{const n=ageN(p.nasc);if(n!=null&&n>=a&&n<=b&&r[p.sexo]!=null){r[p.sexo]++;r.tot++}});return r});
+  const mxF=Math.max(...cnt.map(r=>r.tot),1);
+  const leg=sexos.map(([x,c])=>{const n=P.filter(p=>p.sexo===x).length;return `<span class="lg"><i style="background:${c}"></i>${x}: <b>${n}</b>${N?' ('+Math.round(n/N*100)+'%)':''}</span>`}).join('');
+  const rows=cnt.map(r=>`<div class="frow"><span>${r.l}</span><span class="bar">${sexos.map(([x,c])=>r[x]?`<i style="width:${(r[x]/mxF*100).toFixed(1)}%;background:${c}"></i>`:'').join('')}</span><span>${r.tot}</span></div>`).join('');
+  const d0=new Date(),meses=[];
+  for(let i=11;i>=0;i--){const d=new Date(d0.getFullYear(),d0.getMonth()-i,1),k=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');const a=S.sessions.filter(s=>s.data<=t&&s.data.slice(0,7)===k);meses.push({l:MES[d.getMonth()],y:d.getFullYear(),n:a.length,v:a.reduce((x,s)=>x+Number(s.valor||0),0)})}
+  const mx=Math.max(...meses.map(m=>m.v),1),W=600,H=250,pl=6,pt=26,pb=34,bw=(W-pl*2)/12,ch=H-pt-pb;
+  const X=i=>pl+bw*i+bw/2,Y=v=>pt+ch-(v/mx)*ch;
+  const kf=v=>v>=1000?(v/1000).toFixed(1).replace('.',',')+'k':String(Math.round(v));
+  const svg=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block" role="img" aria-label="Faturamento mensal dos últimos 12 meses">
+  <line x1="${pl}" x2="${W-pl}" y1="${pt+ch}" y2="${pt+ch}" stroke="var(--bd)"/>
+  ${meses.map((m,i)=>`<rect x="${(X(i)-bw*.31).toFixed(1)}" y="${Y(m.v).toFixed(1)}" width="${(bw*.62).toFixed(1)}" height="${(pt+ch-Y(m.v)).toFixed(1)}" rx="3" fill="var(--acc)" opacity=".85"/>${m.v?`<text x="${X(i).toFixed(1)}" y="${(Y(m.v)-7).toFixed(1)}" text-anchor="middle" font-size="13" fill="var(--fg)">${kf(m.v)}</text>`:''}<text x="${X(i).toFixed(1)}" y="${H-16}" text-anchor="middle" font-size="13" fill="var(--mut)">${m.l}</text>${(m.l==='Jan'||i===0)?`<text x="${X(i).toFixed(1)}" y="${H-3}" text-anchor="middle" font-size="11" fill="var(--mut)">${m.y}</text>`:''}`).join('')}
+  <polyline points="${meses.map((m,i)=>X(i).toFixed(1)+','+Y(m.v).toFixed(1)).join(' ')}" fill="none" stroke="#d97706" stroke-width="2.5" stroke-linejoin="round"/>
+  ${meses.map((m,i)=>`<circle cx="${X(i).toFixed(1)}" cy="${Y(m.v).toFixed(1)}" r="3.5" fill="#d97706"/>`).join('')}</svg>`;
+  const tot=meses.reduce((x,m)=>x+m.v,0),cur=meses[11].v,prev=meses[10].v,nTot=meses.reduce((x,m)=>x+m.n,0);
+  const varTxt=prev>0?((cur-prev)/prev*100>=0?'+':'')+((cur-prev)/prev*100).toFixed(1).replace('.',',')+'% em relação ao mês anterior':'sem faturamento no mês anterior para comparar';
+  return `<h2>Número total de pacientes</h2><div class="card"><div class="big">${N}</div><div class="mut">paciente(s) cadastrado(s)</div></div>
+  <h2>Perfil dos pacientes por idade e sexo</h2><div class="card"><div>${leg}</div>${rows}<div class="mut" style="margin-top:6px">Número de pacientes em cada faixa etária (idade em anos completos).</div></div>
+  <h2>Progressão do faturamento mês a mês</h2><div class="card">${svg}
+  <div class="mtot"><span>Últimos 12 meses <span class="mut" style="font-weight:400">(${nTot} atendimentos)</span></span><span>${brl(tot)}</span></div>
+  <div class="mut" style="margin-top:6px">Mês atual: ${brl(cur)} (${varTxt}). Valores em reais (k = mil), pela data do atendimento, considerando os atendimentos até hoje. A linha laranja liga o total de cada mês.</div></div>`;
 }
 function migBar(){
   const el=document.getElementById('mig');if(!el)return;
@@ -227,9 +252,9 @@ function migBar(){
   el.innerHTML=(np+ns)?`<div class="card" style="border-color:#d97706"><b>Dados antigos encontrados neste navegador</b><div class="mut">${np} paciente(s) e ${ns} atendimento(s) estão guardados só aqui. Copie para o banco de dados para não perdê-los.</div><div class="btns"><button class="pri" data-a="migrar">Copiar para o banco de dados</button></div></div>`:'';
 }
 function render(){
-  const T=[['pac','Cadastro'],['atd','Atendimentos'],['cob','Cobranças'],['rec','Dashboard'],['bus','Busca'],['cfg','Mensagem']];
+  const T=[['pac','Cadastro'],['atd','Atendimentos'],['cob','Cobranças'],['rec','Dashboard'],['rel','Relatório'],['bus','Busca']];
   $('#nav').innerHTML=T.map(([k,n])=>`<button class="${k===tab?'on':''}" data-a="tab" data-id="${k}">${n}</button>`).join('');
-  $('#app').innerHTML={cob:vCob,rec:vRecebido,bus:vBusca,atd:vAtd,pac:vPac,cfg:vCfg}[tab]();migBar();
+  $('#app').innerHTML={cob:vCob,rec:vRecebido,bus:vBusca,atd:vAtd,pac:vPac,rel:vRel}[tab]();migBar();
 }
 document.addEventListener('click',e=>{
   const b=e.target.closest('[data-a]');if(!b||['INPUT','SELECT','TEXTAREA'].includes(b.tagName))return;
