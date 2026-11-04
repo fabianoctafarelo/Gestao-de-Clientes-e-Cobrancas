@@ -38,6 +38,15 @@ textarea{min-height:90px}
 .bar{background:var(--bg);border-radius:99px;height:8px;overflow:hidden}
 .bar i{display:block;height:100%;background:var(--acc)}
 .mtot{display:flex;justify-content:space-between;gap:8px;margin-top:4px;padding-top:8px;border-top:2px solid var(--bd);font-weight:600}
+.stage{--c:var(--acc);margin:18px 0;padding:10px;border:1px solid var(--bd);border-top:5px solid var(--c);border-radius:14px;background:color-mix(in srgb,var(--c) 7%,var(--bg))}
+.stage.s1{--c:#dc2626}.stage.s2{--c:#d97706}.stage.s3{--c:#2563eb}.stage.s4{--c:#16a34a}
+.stage-h{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.stage-n{flex:none;width:28px;height:28px;border-radius:50%;background:var(--c);color:#fff;display:grid;place-items:center;font-weight:700;font-size:14px}
+.stage-t{flex:1;font-size:16px;font-weight:700;color:var(--c)}
+.stage-t small{display:block;font-weight:400;font-size:12px;color:var(--mut)}
+.stage-v{text-align:right;font-weight:700;white-space:nowrap}
+.stage-v small{display:block;font-weight:400;font-size:12px;color:var(--mut)}
+.stage .card{border-left:4px solid var(--c)}
 </style></head><body><main>
 <div class="top"><h1>Pacientes e Cobranças</h1><div><button id="lo" data-a="logout" style="display:none">Sair</button></div></div>
 <div id="st" class="mut"></div>
@@ -128,12 +137,15 @@ function vCob(){
   const sum=a=>a.reduce((x,s)=>x+Number(s.valor||0),0);
   const rec=S.sessions.filter(s=>s.pago&&s.pago.slice(0,7)===m);
   const paid=S.sessions.filter(s=>s.pago).sort((a,b)=>b.pago.localeCompare(a.pago)).slice(0,30);
-  const blk=(h,a,e)=>`<h2>${h} (${a.length})</h2>${a.length?a.map(row).join(''):`<div class="mut">${e}</div>`}`;
+  const blk=(n,cls,h,sub,a,e)=>`<section class="stage ${cls}">
+    <div class="stage-h"><span class="stage-n">${n}</span><div class="stage-t">${h}<small>${sub}</small></div>
+    <div class="stage-v">${brl(sum(a))}<small>${a.length} ${a.length===1?'item':'itens'}</small></div></div>
+    ${a.length?a.map(row).join(''):`<div class="mut">${e}</div>`}</section>`;
   return `<div class="sum"><div><span class="mut">A receber</span><b>${brl(sum(open))}</b></div><div><span class="mut">Recebido no mês</span><b>${brl(sum(rec))}</b></div></div>
-  ${blk('Enviar cobrança agora',due,'Nenhuma cobrança para enviar hoje.')}
-  ${blk('Enviadas, aguardando pagamento',sent,'Nada em aberto.')}
-  ${blk('Cobranças agendadas',wait,'Nenhuma cobrança agendada.')}
-  ${blk('Já pagos (últimos 30)',paid,'Nenhum pagamento registrado.')}`;
+  ${blk(1,'s1','Enviar cobrança agora','Vencidas ou com vencimento hoje: envie pelo WhatsApp',due,'Nenhuma cobrança para enviar hoje.')}
+  ${blk(2,'s2','Enviadas, aguardando pagamento','Cobrança enviada: falta confirmar o pagamento',sent,'Nada em aberto.')}
+  ${blk(3,'s3','Cobranças agendadas','Ainda não chegou a data de envio',wait,'Nenhuma cobrança agendada.')}
+  ${blk(4,'s4','Já pagos (últimos 30)','Pagamentos confirmados',paid,'Nenhum pagamento registrado.')}`;
 }
 function vRecebido(){
   const m=today().slice(0,7),MES=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
