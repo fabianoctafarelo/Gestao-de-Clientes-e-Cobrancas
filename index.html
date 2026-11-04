@@ -67,6 +67,9 @@ textarea{min-height:90px}
 .grp{display:flex;justify-content:space-between;align-items:center;gap:8px;width:100%;text-align:left;border-radius:12px;padding:10px 12px;margin:8px 0 0;background:var(--card)}
 .grp.open{border-color:var(--acc)}
 .gbody{margin:0 0 8px 8px;padding-left:8px;border-left:3px solid var(--acc)}
+.zona{--c:#7c3aed;margin:22px 0 12px;padding:10px;border:1px solid var(--bd);border-top:5px solid var(--c);border-radius:14px;background:color-mix(in srgb,var(--c) 7%,var(--bg))}
+.zona.z-lista{--c:#2563eb}
+.zona h2{margin:2px 0 8px;font-size:16px;color:var(--c)}
 </style></head><body><main>
 <div class="top"><h1>Pacientes e Cobranças</h1><div><button id="lo" data-a="logout" style="display:none">Sair</button></div></div>
 <div id="st" class="mut"></div>
@@ -235,8 +238,7 @@ function vAtd(){
   <label>Repetir semanalmente (nº de sessões)</label><input type="number" min="1" max="52" id="a_rep" value="1">
   <div class="mut">Use 0 para cobrar no mesmo dia e número negativo para cobrar antes.</div>
   <div class="btns"><button class="pri" data-a="addses">Salvar atendimento</button></div></div>
-  ${justSaved&&lastId?`<div class="card" style="border-color:var(--ok)"><b style="color:var(--ok)">${justSaved>1?justSaved+' atendimentos salvos':'Atendimento salvo'}.</b><div class="btns"><button class="pri" data-a="vdados" data-id="${lastId}">Ver todos os dados digitados</button></div></div>`:''}<h2>Atendimentos (${list.length})</h2>
-  ${gruposAtd(list)}`;
+  ${justSaved&&lastId?`<div class="card" style="border-color:var(--ok)"><b style="color:var(--ok)">${justSaved>1?justSaved+' atendimentos salvos':'Atendimento salvo'}.</b><div class="btns"><button class="pri" data-a="vdados" data-id="${lastId}">Ver todos os dados digitados</button></div></div>`:''}<section class="zona z-hist"><h2>Histórico de Atendimentos (${list.length})</h2>${gruposAtd(list)}</section>`;
 }
 function vPac(){
   const e=S.patients.find(p=>p.id===editId)||{mesmo:true};
@@ -253,10 +255,10 @@ function vPac(){
   <div><label>Cobrar (dias após o atendimento) *</label><input type="number" id="p_off" placeholder="0 = no mesmo dia" value="${e.off==null?'':e.off}"></div></div>
   <div id="perr" style="color:var(--bad);font-weight:600;margin-top:8px"></div>
   <div class="btns"><button class="pri" data-a="savepat">Salvar</button>${editId?'<button data-a="cancelpat">Cancelar</button>':''}</div></div>
-  <h2>Pacientes (${S.patients.length})</h2>
+  <section class="zona z-lista"><h2>Lista de Pacientes (${S.patients.length})</h2>
   ${S.patients.map(p=>`<div class="card"><div class="top"><b>${esc(p.nome)}</b><span class="mut">${esc(p.sexo)} · ${age(p.nasc)}</span></div>
   <div class="mut">Responsável: ${p.mesmo?'o próprio paciente':esc(p.resp)} · CPF paciente ${esc(p.cpfpac||'não informado')} · CPF resp. ${esc(p.cpf||'não informado')} · ${esc(p.tel||'sem WhatsApp')} · ${brl(p.valor)} · cobrança ${p.off||0} dia(s) após</div>
-  <div class="btns"><button data-a="editpat" data-id="${p.id}">Editar</button><button data-a="delpat" data-id="${p.id}">Excluir</button></div></div>`).join('')}`;
+  <div class="btns"><button data-a="editpat" data-id="${p.id}">Editar</button><button data-a="delpat" data-id="${p.id}">Excluir</button></div></div>`).join('')}</section>`;
 }
 function vRel(){
   const t=today(),P=S.patients,N=P.length;
