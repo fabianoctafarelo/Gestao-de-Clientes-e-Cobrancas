@@ -232,7 +232,7 @@ function vRel(){
   const mx=Math.max(...meses.map(m=>m.v),1),W=600,H=250,pl=6,pt=26,pb=34,bw=(W-pl*2)/12,ch=H-pt-pb;
   const X=i=>pl+bw*i+bw/2,Y=v=>pt+ch-(v/mx)*ch;
   const kf=v=>v>=1000?(v/1000).toFixed(1).replace('.',',')+'k':String(Math.round(v));
-  const svg=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block" role="img" aria-label="Faturamento mensal dos últimos 12 meses">
+  const svg=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block" role="img" aria-label="Produção mensal dos últimos 12 meses">
   <line x1="${pl}" x2="${W-pl}" y1="${pt+ch}" y2="${pt+ch}" stroke="var(--bd)"/>
   ${meses.map((m,i)=>`<rect x="${(X(i)-bw*.31).toFixed(1)}" y="${Y(m.v).toFixed(1)}" width="${(bw*.62).toFixed(1)}" height="${(pt+ch-Y(m.v)).toFixed(1)}" rx="3" fill="var(--acc)" opacity=".85"/>${m.v?`<text x="${X(i).toFixed(1)}" y="${(Y(m.v)-7).toFixed(1)}" text-anchor="middle" font-size="13" fill="var(--fg)">${kf(m.v)}</text>`:''}<text x="${X(i).toFixed(1)}" y="${H-16}" text-anchor="middle" font-size="13" fill="var(--mut)">${m.l}</text>${(m.l==='Jan'||i===0)?`<text x="${X(i).toFixed(1)}" y="${H-3}" text-anchor="middle" font-size="11" fill="var(--mut)">${m.y}</text>`:''}`).join('')}
   <polyline points="${meses.map((m,i)=>X(i).toFixed(1)+','+Y(m.v).toFixed(1)).join(' ')}" fill="none" stroke="#d97706" stroke-width="2.5" stroke-linejoin="round"/>
@@ -241,7 +241,7 @@ function vRel(){
   const varTxt=prev>0?((cur-prev)/prev*100>=0?'+':'')+((cur-prev)/prev*100).toFixed(1).replace('.',',')+'% em relação ao mês anterior':'sem faturamento no mês anterior para comparar';
   return `<h2>Número total de pacientes</h2><div class="card"><div class="big">${N}</div><div class="mut">paciente(s) cadastrado(s)</div></div>
   <h2>Perfil dos pacientes por idade e sexo</h2><div class="card"><div>${leg}</div>${rows}<div class="mut" style="margin-top:6px">Número de pacientes em cada faixa etária (idade em anos completos).</div></div>
-  <h2>Progressão do faturamento mês a mês</h2><div class="card">${svg}
+  <h2>Progressão da Produção mês a mês (R$)</h2><div class="card">${svg}
   <div class="mtot"><span>Últimos 12 meses <span class="mut" style="font-weight:400">(${nTot} atendimentos)</span></span><span>${brl(tot)}</span></div>
   <div class="mut" style="margin-top:6px">Mês atual: ${brl(cur)} (${varTxt}). Valores em reais (k = mil), pela data do atendimento, considerando os atendimentos até hoje. A linha laranja liga o total de cada mês.</div></div>`;
 }
