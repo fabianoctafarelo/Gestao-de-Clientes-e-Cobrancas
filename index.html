@@ -64,6 +64,9 @@ textarea{min-height:90px}
 .bd-d{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;font-weight:700;background:var(--bg);border:2px solid var(--acc);color:var(--acc)}
 .bday.past .bd-d{border-color:var(--bd);color:var(--mut)}
 .bday.now .bd-d{background:var(--acc);color:var(--onacc)}
+.grp{display:flex;justify-content:space-between;align-items:center;gap:8px;width:100%;text-align:left;border-radius:12px;padding:10px 12px;margin:8px 0 0;background:var(--card)}
+.grp.open{border-color:var(--acc)}
+.gbody{margin:0 0 8px 8px;padding-left:8px;border-left:3px solid var(--acc)}
 </style></head><body><main>
 <div class="top"><h1>Pacientes e Cobranças</h1><div><button id="lo" data-a="logout" style="display:none">Sair</button></div></div>
 <div id="st" class="mut"></div>
@@ -207,6 +210,20 @@ function buscaRes(){
 function vBusca(){
   return `<div class="card"><b>Buscar cadastro</b><label>Nome do paciente, nome do responsável, CPF do paciente ou CPF do responsável</label><input id="q" autocomplete="off" placeholder="Digite o nome ou o CPF" value="${esc(qBusca)}"></div><div id="qres">${buscaRes()}</div>`;
 }
+const openP=new Set();
+function sesCard(s){
+  return `<div class="card" id="ses-${s.id}"><div class="top"><b>${fd(s.data)}</b><span>${brl(s.valor)}</span></div>
+  <div class="mut">cobrança ${fd(s.cob)}${s.pago?' · pago':s.env?' · enviada':''}</div>
+  <div class="btns"><button data-a="vdados" data-id="${s.id}">${viewId===s.id?'Ocultar dados':'Ver dados'}</button><button data-a="recbox" data-id="${s.id}">Transcrição e resumo</button><button data-a="delses" data-id="${s.id}">Excluir</button></div>${viewId===s.id?dadosBox(s):''}${recId===s.id?recBox(s):''}</div>`;
+}
+function gruposAtd(list){
+  const by={};list.forEach(s=>(by[s.pid]=by[s.pid]||[]).push(s));
+  const gs=S.patients.filter(p=>by[p.id]).map(p=>({id:p.id,nome:p.nome})).concat(Object.keys(by).filter(id=>!pat(id)).map(id=>({id,nome:'(removido)'})));
+  return gs.map(g=>{
+    const a=by[g.id],open=openP.has(g.id),tot=a.reduce((x,s)=>x+Number(s.valor||0),0);
+    return `<div><button class="grp${open?' open':''}" data-a="togpac" data-id="${g.id}"><span><b>${open?'▾':'▸'} ${esc(g.nome)}</b><span class="mut" style="display:block">${a.length} atendimento${a.length===1?'':'s'} · ${brl(tot)}</span></span><span class="mut">${open?'Ocultar':'Ver atendimentos'}</span></button>${open?`<div class="gbody">${a.map(sesCard).join('')}</div>`:''}</div>`;
+  }).join('');
+}
 function vAtd(){
   if(!S.patients.length)return '<div class="card">Cadastre um paciente primeiro, na aba Cadastro.</div>';
   const p0=S.patients[0],list=[...S.sessions].sort((a,b)=>b.data.localeCompare(a.data));
@@ -219,9 +236,7 @@ function vAtd(){
   <div class="mut">Use 0 para cobrar no mesmo dia e número negativo para cobrar antes.</div>
   <div class="btns"><button class="pri" data-a="addses">Salvar atendimento</button></div></div>
   ${justSaved&&lastId?`<div class="card" style="border-color:var(--ok)"><b style="color:var(--ok)">${justSaved>1?justSaved+' atendimentos salvos':'Atendimento salvo'}.</b><div class="btns"><button class="pri" data-a="vdados" data-id="${lastId}">Ver todos os dados digitados</button></div></div>`:''}<h2>Atendimentos (${list.length})</h2>
-  ${list.map(s=>{const p=pat(s.pid)||{nome:'(removido)'};return `<div class="card" id="ses-${s.id}"><div class="top"><b>${esc(p.nome)}</b><span>${brl(s.valor)}</span></div>
-  <div class="mut">${fd(s.data)} · cobrança ${fd(s.cob)}${s.pago?' · pago':s.env?' · enviada':''}</div>
-  <div class="btns"><button data-a="vdados" data-id="${s.id}">${viewId===s.id?'Ocultar dados':'Ver dados'}</button><button data-a="recbox" data-id="${s.id}">Transcrição e resumo</button><button data-a="delses" data-id="${s.id}">Excluir</button></div>${viewId===s.id?dadosBox(s):''}${recId===s.id?recBox(s):''}</div>`}).join('')}`;
+  ${gruposAtd(list)}`;
 }
 function vPac(){
   const e=S.patients.find(p=>p.id===editId)||{mesmo:true};
@@ -232,7 +247,7 @@ function vPac(){
   <label>CPF do paciente *</label><input id="p_cpfpac" inputmode="numeric" maxlength="14" placeholder="000.000.000-00" value="${esc(e.cpfpac)}">
   <label class="chk"><input type="checkbox" id="p_mesmo" data-a="p_mesmo" ${e.mesmo?'checked':''}> Responsável financeiro é o próprio paciente</label>
   <div id="p_respbox" style="display:${e.mesmo?'none':'block'}"><label>Nome do responsável financeiro *</label><input id="p_resp" value="${esc(e.resp)}"></div>
-  <label>CPF do responsável financeiro (do paciente, se for o mesmo) *</label><input id="p_cpf" inputmode="numeric" maxlength="14" placeholder="000.000.000-00" value="${esc(e.cpf)}">
+  <div id="p_cpfbox" style="display:${e.mesmo?'none':'block'}"><label>CPF do responsável financeiro *</label><input id="p_cpf" inputmode="numeric" maxlength="14" placeholder="000.000.000-00" value="${esc(e.mesmo?'':e.cpf)}"></div>
   <label>WhatsApp de quem recebe a cobrança (com DDD) *</label><input type="tel" id="p_tel" placeholder="11999998888" value="${esc(e.tel)}">
   <div class="grid"><div><label>Valor padrão da sessão (R$) *</label><input type="number" step="0.01" id="p_valor" value="${esc(e.valor)}"></div>
   <div><label>Cobrar (dias após o atendimento) *</label><input type="number" id="p_off" placeholder="0 = no mesmo dia" value="${e.off==null?'':e.off}"></div></div>
@@ -308,21 +323,22 @@ document.addEventListener('click',e=>{
     chk('p_sexo','sexo',!!g('p_sexo'));
     chk('p_cpfpac','CPF válido do paciente',cpfOk(g('p_cpfpac')));
     if(!mesmo)chk('p_resp','nome do responsável financeiro',!!g('p_resp'));
-    chk('p_cpf','CPF válido do responsável financeiro',cpfOk(g('p_cpf')));
+    if(!mesmo)chk('p_cpf','CPF válido do responsável financeiro',cpfOk(g('p_cpf')));
     const ph=g('p_tel').replace(/\D/g,'').replace(/^0+/,'');
     chk('p_tel','WhatsApp com DDD (10 ou 11 dígitos)',ph.length===10||ph.length===11||(ph.length>=12&&ph.length<=13&&ph.startsWith('55')));
     chk('p_valor','valor da sessão maior que zero',parseFloat(g('p_valor'))>0);
     chk('p_off','dias para a cobrança',g('p_off')!==''&&!isNaN(parseInt(g('p_off'))));
     if(falta.length){const el=$('#perr');el.textContent='Preencha corretamente: '+falta.join('; ')+'.';el.scrollIntoView({block:'center'});return}
-    const o={id:editId||uid(),nome:g('p_nome'),nasc:g('p_nasc'),sexo:g('p_sexo'),mesmo,resp:mesmo?'':g('p_resp'),tel:g('p_tel'),cpf:fmtCpf(g('p_cpf')),cpfpac:fmtCpf(g('p_cpfpac')),valor:parseFloat(g('p_valor')),off:parseInt(g('p_off'))};
+    const o={id:editId||uid(),nome:g('p_nome'),nasc:g('p_nasc'),sexo:g('p_sexo'),mesmo,resp:mesmo?'':g('p_resp'),tel:g('p_tel'),cpf:fmtCpf(mesmo?g('p_cpfpac'):g('p_cpf')),cpfpac:fmtCpf(g('p_cpfpac')),valor:parseFloat(g('p_valor')),off:parseInt(g('p_off'))};
     if(editId)S.patients=S.patients.map(x=>x.id===editId?o:x);else S.patients.push(o);
     editId=null;save()}
   else if(a==='addses'){
     const pid=val('a_pid'),d=val('a_data');if(!pid||!d){alert('Informe paciente e data.');return}
     const n=Math.max(1,Math.min(52,parseInt(val('a_rep'))||1)),off=parseInt(val('a_off'))||0;
     const ids=[];for(let i=0;i<n;i++){const dt=addDays(d,7*i),sid=uid();ids.push(sid);S.sessions.push({id:sid,pid,data:dt,valor:parseFloat(val('a_valor'))||0,cob:addDays(dt,off),rep:n,seq:i+1})}
-    justSaved=n;lastId=ids[0];viewId=null;save()}
-  else if(a==='vdados'){viewId=viewId===id?null:id;render();const el=document.getElementById('ses-'+id);if(el)el.scrollIntoView({block:'start'});return}
+    justSaved=n;lastId=ids[0];viewId=null;openP.add(pid);save()}
+  else if(a==='togpac'){if(openP.has(id))openP.delete(id);else openP.add(id)}
+  else if(a==='vdados'){if(s)openP.add(s.pid);viewId=viewId===id?null:id;render();const el=document.getElementById('ses-'+id);if(el)el.scrollIntoView({block:'start'});return}
   else if(a==='recbox'){recId=recId===id?null:id}
   else if(a==='logout'){if(sbClient)sbClient.auth.signOut().then(()=>location.reload());return}
   else if(a==='copy'){const t=$('#bk');t.focus();t.select()}
@@ -336,7 +352,7 @@ document.addEventListener('change',e=>{
   if(a==='cobchg'){const s=S.sessions.find(x=>x.id===t.dataset.id);if(s&&t.value){s.cob=t.value;save();render()}}
   else if(a==='ano'){ano=t.value;render()}
   else if(a==='a_pid'){const p=pat(t.value);if(p){$('#a_valor').value=p.valor||'';$('#a_off').value=p.off||0}}
-  else if(a==='p_mesmo'){$('#p_respbox').style.display=t.checked?'none':'block'}
+  else if(a==='p_mesmo'){$('#p_respbox').style.display=t.checked?'none':'block';$('#p_cpfbox').style.display=t.checked?'none':'block'}
   else if(a==='tpl'){S.tpl=t.value||DEF;save()}
   else if(a==='trsave'||a==='ressave'){const s=S.sessions.find(x=>x.id===t.dataset.id);if(s){if(a==='trsave')s.transc=t.value;else s.resumo=t.value;save()}}
 });
