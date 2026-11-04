@@ -70,6 +70,8 @@ textarea{min-height:90px}
 .zona{--c:#7c3aed;margin:22px 0 12px;padding:10px;border:1px solid var(--bd);border-top:5px solid var(--c);border-radius:14px;background:color-mix(in srgb,var(--c) 7%,var(--bg))}
 .zona.z-lista{--c:#2563eb}
 .zona h2{margin:2px 0 8px;font-size:16px;color:var(--c)}
+.seg{display:flex;gap:6px;margin:0 0 8px}
+.zona .seg button.on{background:var(--c);border-color:var(--c);color:#fff}
 </style></head><body><main>
 <div class="top"><h1>Pacientes e Cobranças</h1><div><button id="lo" data-a="logout" style="display:none">Sair</button></div></div>
 <div id="st" class="mut"></div>
@@ -213,10 +215,11 @@ function buscaRes(){
 function vBusca(){
   return `<div class="card"><b>Buscar cadastro</b><label>Nome do paciente, nome do responsável, CPF do paciente ou CPF do responsável</label><input id="q" autocomplete="off" placeholder="Digite o nome ou o CPF" value="${esc(qBusca)}"></div><div id="qres">${buscaRes()}</div>`;
 }
-const openP=new Set();
-function sesCard(s){
-  return `<div class="card" id="ses-${s.id}"><div class="top"><b>${fd(s.data)}</b><span>${brl(s.valor)}</span></div>
-  <div class="mut">cobrança ${fd(s.cob)}${s.pago?' · pago':s.env?' · enviada':''}</div>
+const openP=new Set();let histModo='pac';
+function sesCard(s,nome){
+  const pn=nome?(pat(s.pid)||{nome:'(removido)'}).nome:'';
+  return `<div class="card" id="ses-${s.id}"><div class="top"><b>${nome?esc(pn):fd(s.data)}</b><span>${brl(s.valor)}</span></div>
+  <div class="mut">${nome?'Atendimento '+fd(s.data)+' · ':''}cobrança ${fd(s.cob)}${s.pago?' · pago':s.env?' · enviada':''}</div>
   <div class="btns"><button data-a="vdados" data-id="${s.id}">${viewId===s.id?'Ocultar dados':'Ver dados'}</button><button data-a="recbox" data-id="${s.id}">Transcrição e resumo</button><button data-a="delses" data-id="${s.id}">Excluir</button></div>${viewId===s.id?dadosBox(s):''}${recId===s.id?recBox(s):''}</div>`;
 }
 function gruposAtd(list){
@@ -224,7 +227,7 @@ function gruposAtd(list){
   const gs=S.patients.filter(p=>by[p.id]).map(p=>({id:p.id,nome:p.nome})).concat(Object.keys(by).filter(id=>!pat(id)).map(id=>({id,nome:'(removido)'})));
   return gs.map(g=>{
     const a=by[g.id],open=openP.has(g.id),tot=a.reduce((x,s)=>x+Number(s.valor||0),0);
-    return `<div><button class="grp${open?' open':''}" data-a="togpac" data-id="${g.id}"><span><b>${open?'▾':'▸'} ${esc(g.nome)}</b><span class="mut" style="display:block">${a.length} atendimento${a.length===1?'':'s'} · ${brl(tot)}</span></span><span class="mut">${open?'Ocultar':'Ver atendimentos'}</span></button>${open?`<div class="gbody">${a.map(sesCard).join('')}</div>`:''}</div>`;
+    return `<div><button class="grp${open?' open':''}" data-a="togpac" data-id="${g.id}"><span><b>${open?'▾':'▸'} ${esc(g.nome)}</b><span class="mut" style="display:block">${a.length} atendimento${a.length===1?'':'s'} · ${brl(tot)}</span></span><span class="mut">${open?'Ocultar':'Ver atendimentos'}</span></button>${open?`<div class="gbody">${a.map(s=>sesCard(s)).join('')}</div>`:''}</div>`;
   }).join('');
 }
 function vAtd(){
@@ -238,7 +241,7 @@ function vAtd(){
   <label>Repetir semanalmente (nº de sessões)</label><input type="number" min="1" max="52" id="a_rep" value="1">
   <div class="mut">Use 0 para cobrar no mesmo dia e número negativo para cobrar antes.</div>
   <div class="btns"><button class="pri" data-a="addses">Salvar atendimento</button></div></div>
-  ${justSaved&&lastId?`<div class="card" style="border-color:var(--ok)"><b style="color:var(--ok)">${justSaved>1?justSaved+' atendimentos salvos':'Atendimento salvo'}.</b><div class="btns"><button class="pri" data-a="vdados" data-id="${lastId}">Ver todos os dados digitados</button></div></div>`:''}<section class="zona z-hist"><h2>Histórico de Atendimentos (${list.length})</h2>${gruposAtd(list)}</section>`;
+  ${justSaved&&lastId?`<div class="card" style="border-color:var(--ok)"><b style="color:var(--ok)">${justSaved>1?justSaved+' atendimentos salvos':'Atendimento salvo'}.</b><div class="btns"><button class="pri" data-a="vdados" data-id="${lastId}">Ver todos os dados digitados</button></div></div>`:''}<section class="zona z-hist"><h2>Histórico de Atendimentos (${list.length})</h2><div class="seg"><button class="${histModo==='data'?'on':''}" data-a="histmodo" data-id="data">Por Data</button><button class="${histModo==='pac'?'on':''}" data-a="histmodo" data-id="pac">Por Paciente</button></div>${histModo==='data'?list.map(s=>sesCard(s,true)).join(''):gruposAtd(list)}</section>`;
 }
 function vPac(){
   const e=S.patients.find(p=>p.id===editId)||{mesmo:true};
@@ -339,6 +342,7 @@ document.addEventListener('click',e=>{
     const n=Math.max(1,Math.min(52,parseInt(val('a_rep'))||1)),off=parseInt(val('a_off'))||0;
     const ids=[];for(let i=0;i<n;i++){const dt=addDays(d,7*i),sid=uid();ids.push(sid);S.sessions.push({id:sid,pid,data:dt,valor:parseFloat(val('a_valor'))||0,cob:addDays(dt,off),rep:n,seq:i+1})}
     justSaved=n;lastId=ids[0];viewId=null;openP.add(pid);save()}
+  else if(a==='histmodo'){histModo=id==='data'?'data':'pac'}
   else if(a==='togpac'){if(openP.has(id))openP.delete(id);else openP.add(id)}
   else if(a==='vdados'){if(s)openP.add(s.pid);viewId=viewId===id?null:id;render();const el=document.getElementById('ses-'+id);if(el)el.scrollIntoView({block:'start'});return}
   else if(a==='recbox'){recId=recId===id?null:id}
