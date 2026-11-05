@@ -87,6 +87,7 @@ textarea{min-height:90px}
 .sl.free{border-color:var(--acc)}.sl.free:hover{background:color-mix(in srgb,var(--acc) 14%,var(--card))}
 .sl.busy{background:color-mix(in srgb,#d97706 22%,var(--card));border-color:#d97706}.sl.busy small{color:var(--fg)}
 .sl.past{opacity:.45;cursor:default}
+.seg{flex-wrap:wrap}
 </style></head><body><main>
 <div class="top"><h1>Pacientes e Cobranças</h1><div><button id="lo" data-a="logout" style="display:none">Sair</button></div></div>
 <div id="st" class="mut"></div>
@@ -141,7 +142,7 @@ function dadosBox(s){
   const p=pat(s.pid)||{},L=(k,v)=>`<div><span class="mut">${k}</span><br>${esc(v||'—')}</div>`,
   dias=Math.round((new Date(s.cob+'T12:00:00')-new Date(s.data+'T12:00:00'))/864e5);
   return `<div class="card" style="background:var(--bg)"><b>Dados do atendimento</b>
-  <div class="grid" style="margin-top:6px">${L('Paciente',p.nome)}${L('Nascimento',p.nasc?fd(p.nasc)+' ('+age(p.nasc)+')':'')}${L('Sexo',p.sexo)}${L('Responsável financeiro',p.mesmo?(p.nome||'')+' (o próprio paciente)':p.resp)}${L('CPF do paciente',p.cpfpac)}${L('CPF do responsável',p.cpf)}${L('WhatsApp',p.tel)}${L('Data do atendimento',fd(s.data))}${L('Horário',s.hora)}${L('Valor',brl(s.valor))}${L('Data da cobrança',fd(s.cob)+' ('+(dias===0?'no mesmo dia':dias>0?dias+' dia(s) após':(-dias)+' dia(s) antes')+')')}${L('Série',s.rep>1?'Sessão '+s.seq+' de '+s.rep:'Sessão única')}${L('Cobrança enviada',s.env?fd(s.env):'Não')}${L('Pagamento',s.pago?'Pago em '+fd(s.pago):'Pendente')}</div>
+  <div class="grid" style="margin-top:6px">${L('Paciente',p.nome)}${L('Nascimento',p.nasc?fd(p.nasc)+' ('+age(p.nasc)+')':'')}${L('Sexo',p.sexo)}${L('Responsável financeiro',p.mesmo?(p.nome||'')+' (o próprio paciente)':p.resp)}${L('CPF do paciente',p.cpfpac)}${L('CPF do responsável',p.cpf)}${L('WhatsApp',p.tel)}${L('Data do atendimento',fd(s.data))}${L('Horário',s.hora?s.hora+(s.dur?' (duração '+s.dur+' min)':''):'')}${L('Valor',brl(s.valor))}${L('Data da cobrança',fd(s.cob)+' ('+(dias===0?'no mesmo dia':dias>0?dias+' dia(s) após':(-dias)+' dia(s) antes')+')')}${L('Série',s.rep>1?'Sessão '+s.seq+' de '+s.rep:'Sessão única')}${L('Cobrança enviada',s.env?fd(s.env):'Não')}${L('Pagamento',s.pago?'Pago em '+fd(s.pago):'Pendente')}</div>
   ${s.transc?`<label>Transcrição</label><div style="white-space:pre-wrap">${esc(s.transc)}</div>`:''}${s.resumo?`<label>Resumo</label><div style="white-space:pre-wrap">${esc(s.resumo)}</div>`:''}</div>`;
 }
 function recBox(s){
@@ -222,19 +223,21 @@ function agRow(s){
   const bc=!fut?'':s.conf?`<button class="st done" data-a="unconf" data-id="${s.id}">Confirmado ✓</button>`:`<button class="st go" data-a="conf" data-id="${s.id}">Marcar confirmado</button>`;
   const bx=s.pago?'':`<button data-a="delcanc" data-id="${s.id}">Atendimento cancelado</button>`;
   const tg=!fut?'':s.conf?'<span class="tag ok">confirmado '+fd(s.conf)+'</span>':s.lemb?'<span class="tag">lembrete enviado '+fd(s.lemb)+'</span>':'<span class="tag bad">sem lembrete</span>';
-  return `<div class="card"><div class="top"><b>${s.hora?esc(s.hora)+' · ':''}${esc(p.nome)}</b><span class="mut">${brl(s.valor)}</span></div>
+  return `<div class="card"><div class="top"><b>${s.hora?esc(s.hora)+(s.dur?'–'+endT(s.hora,s.dur):'')+' · ':''}${esc(p.nome)}</b><span class="mut">${brl(s.valor)}</span></div>
   <div class="mut">${s.hora?'':'Sem horário definido '}${tg}</div>
   <div class="btns">${wb}${bl}${bc}${bx}<input type="time" value="${esc(s.hora||'')}" data-a="horachg" data-id="${s.id}" title="Horário do atendimento"></div>${w?`<details><summary class="mut">Ver número e mensagem</summary><div class="mut">Para: ${w.ok?'+'+w.ph:'(sem número válido)'}<br>${esc(w.msg).replace(/\n/g,'<br>')}</div></details>`:''}</div>`;
 }
 const SLOTS=[];for(let m=480;m<1200;m+=30)SLOTS.push(String(Math.floor(m/60)).padStart(2,'0')+':'+(m%60?'30':'00'));
 const slotKey=h=>{const [a,b]=String(h).split(':').map(Number);return String(a).padStart(2,'0')+':'+(b<30?'00':'30')};
-let prefill=null;
+let prefill=null,tipoAtd='normal';
+const endT=(h,d)=>{const[a,b]=String(h).split(':').map(Number),m=a*60+b+d;return String(Math.floor(m/60)%24).padStart(2,'0')+':'+String(m%60).padStart(2,'0')};
 function agVisual(){
   const t=today(),now=new Date(),nowM=now.getHours()*60+now.getMinutes();
   const mon=addDays(agDate,-((new Date(agDate+'T12:00:00').getDay()+6)%7)),dias=[0,1,2,3,4,5,6].map(i=>addDays(mon,i)),ab=['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'];
   const doDia=S.sessions.filter(s=>s.data===agDate),by={};
-  doDia.forEach(s=>{if(s.hora){const k=slotKey(s.hora);(by[k]=by[k]||[]).push(s)}});
-  const fora=doDia.filter(s=>!s.hora||!SLOTS.includes(slotKey(s.hora))).length;
+  const mi=x=>{const[u,v]=String(x).split(':').map(Number);return u*60+v};
+  doDia.forEach(s=>{if(!s.hora)return;const a0=mi(s.hora),a1=a0+(s.dur||60);SLOTS.forEach(h=>{const m=mi(h);if(m<a1&&m+30>a0)(by[h]=by[h]||[]).push(s)})});
+  const fora=doDia.filter(s=>!s.hora||!SLOTS.some(h=>{const m=mi(h),a0=mi(s.hora);return m<a0+(s.dur||60)&&m+30>a0})).length;
   const pills=dias.map((d,i)=>{const n=S.sessions.filter(s=>s.data===d).length;return `<button class="vd${d===agDate?' on':''}${d===t?' hoje':''}" data-a="agday" data-id="${d}"><small>${ab[i]}</small><b>${d.slice(8)}</b><small>${n?n+' atend.':'—'}</small></button>`}).join('');
   const slots=SLOTS.map(h=>{
     const [hh,mm]=h.split(':').map(Number),a=by[h]||[],past=agDate<t||(agDate===t&&hh*60+mm+30<=nowM);
@@ -243,7 +246,7 @@ function agVisual(){
   return `<div class="vag"><div class="vag-h"><button data-a="agwprev" title="Semana anterior">‹</button><b>${fd(dias[0]).slice(0,5)} – ${fd(dias[6]).slice(0,5)}</b><button data-a="agwnext" title="Próxima semana">›</button></div>
   <div class="vag-days">${pills}</div><div class="slots">${slots}</div>
   <div style="margin-top:8px"><span class="lg"><i style="background:var(--card);border:1px solid var(--acc)"></i>Livre</span><span class="lg"><i style="background:#d97706"></i>Ocupado</span><span class="lg"><i style="background:var(--bd)"></i>Passado</span></div>
-  <div class="mut">Toque em um horário livre para criar um novo atendimento naquele dia e hora. Horários de 30 em 30 minutos, das 8h às 20h.${fora?' '+fora+' atendimento'+(fora===1?'':'s')+' deste dia sem horário ou fora desse intervalo (veja a lista abaixo).':''}</div></div>`;
+  <div class="mut">Toque em um horário livre para criar um novo agendamento naquele dia e hora. O quadro marca o tempo de cada sessão (atendimentos antigos sem duração contam 1h), das 8h às 20h, de 30 em 30 minutos.${fora?' '+fora+' atendimento'+(fora===1?'':'s')+' deste dia sem horário ou fora desse intervalo (veja a lista abaixo).':''}</div></div>`;
 }
 function vAg(){
   const t=today();if(!agDate)agDate=t;
@@ -289,8 +292,8 @@ function vBusca(){
 const openP=new Set();let histModo='pac';
 function sesCard(s,nome){
   const pn=nome?(pat(s.pid)||{nome:'(removido)'}).nome:'';
-  return `<div class="card" id="ses-${s.id}"><div class="top"><b>${nome?esc(pn):fd(s.data)+(s.hora?' · '+s.hora:'')}</b><span>${brl(s.valor)}</span></div>
-  <div class="mut">${nome?'Atendimento '+fd(s.data)+(s.hora?' às '+s.hora:'')+' · ':''}cobrança ${fd(s.cob)}${s.pago?' · pago':s.env?' · enviada':''}</div>
+  return `<div class="card" id="ses-${s.id}"><div class="top"><b>${nome?esc(pn):fd(s.data)+(s.hora?' · '+s.hora+(s.dur?'–'+endT(s.hora,s.dur):''):'')}</b><span>${brl(s.valor)}</span></div>
+  <div class="mut">${nome?'Atendimento '+fd(s.data)+(s.hora?' às '+s.hora+(s.dur?'–'+endT(s.hora,s.dur):''):'')+' · ':''}cobrança ${fd(s.cob)}${s.pago?' · pago':s.env?' · enviada':''}</div>
   <div class="btns"><button data-a="vdados" data-id="${s.id}">${viewId===s.id?'Ocultar dados':'Ver dados'}</button><button data-a="recbox" data-id="${s.id}">Transcrição e resumo</button><button data-a="delses" data-id="${s.id}">Excluir</button></div>${viewId===s.id?dadosBox(s):''}${recId===s.id?recBox(s):''}</div>`;
 }
 function gruposAtd(list){
@@ -306,8 +309,10 @@ function vAtd(){
   const p0=S.patients[0],list=[...S.sessions].sort((a,b)=>b.data.localeCompare(a.data));
   return `<div class="card"><b>Novo atendimento</b>
   <label>Paciente</label><select id="a_pid" data-a="a_pid"><option value="">Selecione o paciente…</option>${S.patients.map(p=>`<option value="${p.id}">${esc(p.nome)}</option>`).join('')}</select>
+  <label>Tipo de atendimento *</label><div class="seg"><button class="${tipoAtd==='primeira'?'on':''}" data-a="tipoatd" data-id="primeira">1 - Primeira consulta (1h30)</button><button class="${tipoAtd==='normal'?'on':''}" data-a="tipoatd" data-id="normal">2 - Sessão normal (1h)</button></div>
   <div class="grid"><div><label>Data</label><input type="date" id="a_data" value="${prefill?prefill.data:today()}"></div>
-  <div><label>Horário (opcional)</label><input type="time" id="a_hora" value="${prefill?prefill.hora:''}"></div>
+  <div><label>Horário de início *</label><input type="time" id="a_hora" value="${prefill?prefill.hora:''}"></div>
+  <div><label>Duração (minutos) *</label><input type="number" min="15" step="5" id="a_dur" value="${tipoAtd==='primeira'?90:60}"></div>
   <div><label>Valor (R$)</label><input type="number" step="0.01" id="a_valor" value=""></div>
   <div><label>Cobrar (dias após o atendimento)</label><input type="number" id="a_off" value="0"></div></div>
   <label>Repetir semanalmente (nº de sessões)</label><input type="number" min="1" max="52" id="a_rep" value="1">
@@ -371,7 +376,7 @@ function migBar(){
   el.innerHTML=(np+ns)?`<div class="card" style="border-color:#d97706"><b>Dados antigos encontrados neste navegador</b><div class="mut">${np} paciente(s) e ${ns} atendimento(s) estão guardados só aqui. Copie para o banco de dados para não perdê-los.</div><div class="btns"><button class="pri" data-a="migrar">Copiar para o banco de dados</button></div></div>`:'';
 }
 function render(){
-  const T=[['pac','Cadastro'],['atd','Atendimentos'],['ag','Agenda'],['cob','Cobranças'],['rec','Dashboard'],['bus','Busca']];
+  const T=[['pac','Cadastro'],['atd','Agendamentos'],['ag','Agenda'],['cob','Cobranças'],['rec','Dashboard'],['bus','Busca']];
   $('#nav').innerHTML=T.map(([k,n])=>`<button class="${k===tab?'on':''}" data-a="tab" data-id="${k}">${n}</button>`).join('');
   $('#app').innerHTML={ag:vAg,cob:vCob,rec:()=>vRel()+vTop()+vRecebido(),bus:vBusca,atd:vAtd,pac:vPac}[tab]();migBar();
 }
@@ -418,14 +423,19 @@ document.addEventListener('click',e=>{
     editId=null;save()}
   else if(a==='addses'){
     const pid=val('a_pid'),d=val('a_data');if(!pid||!d){alert('Informe paciente e data.');return}
-    const n=Math.max(1,Math.min(52,parseInt(val('a_rep'))||1)),off=parseInt(val('a_off'))||0,hr=val('a_hora');
-    const ids=[];for(let i=0;i<n;i++){const dt=addDays(d,7*i),sid=uid();ids.push(sid);S.sessions.push({id:sid,pid,data:dt,valor:parseFloat(val('a_valor'))||0,cob:addDays(dt,off),rep:n,seq:i+1,...(hr?{hora:hr}:{})})}
+    const n=Math.max(1,Math.min(52,parseInt(val('a_rep'))||1)),off=parseInt(val('a_off'))||0,hr=val('a_hora'),du=parseInt(val('a_dur'))||0;
+    if(!hr){alert('Informe o horário de início do atendimento.');return}
+    if(du<=0){alert('Informe a duração da sessão (em minutos).');return}
+    const mi=x=>{const[u,v]=x.split(':').map(Number);return u*60+v},c0=mi(hr);
+    for(let i=0;i<n;i++){const dt=addDays(d,7*i),c=S.sessions.find(x=>x.data===dt&&x.hora&&mi(x.hora)<c0+du&&mi(x.hora)+(x.dur||60)>c0);if(c){const pc=pat(c.pid)||{nome:'outro paciente'};if(!confirm('Já existe um atendimento em '+fd(dt)+' às '+c.hora+' ('+pc.nome+'). Salvar mesmo assim?'))return;break}}
+    const ids=[];for(let i=0;i<n;i++){const dt=addDays(d,7*i),sid=uid();ids.push(sid);S.sessions.push({id:sid,pid,data:dt,valor:parseFloat(val('a_valor'))||0,cob:addDays(dt,off),rep:n,seq:i+1,hora:hr,dur:du,tipo:tipoAtd})}
     justSaved=n;lastId=ids[0];viewId=null;openP.add(pid);prefill=null;save()}
   else if(a==='delcanc'){S.sessions=S.sessions.filter(x=>x.id!==id);save()}
   else if(a==='agday'){agDate=id}
   else if(a==='agwprev'||a==='agwnext'){agDate=addDays(agDate||today(),a==='agwnext'?7:-7)}
   else if(a==='slotocc'){agDate=id.split('T')[0];agView='dia'}
   else if(a==='slot'){const [d,h]=id.split('T');prefill={data:d,hora:h};tab='atd';editId=null;setTimeout(()=>window.scrollTo({top:0,behavior:'smooth'}),0)}
+  else if(a==='tipoatd'){tipoAtd=id==='primeira'?'primeira':'normal';const d=$('#a_dur');if(d)d.value=tipoAtd==='primeira'?90:60;document.querySelectorAll('[data-a="tipoatd"]').forEach(x=>x.classList.toggle('on',x.dataset.id===tipoAtd));return}
   else if(a==='agview'){agView=id==='sem'?'sem':'dia'}
   else if(a==='agprev'||a==='agnext'){agDate=addDays(agDate||today(),(a==='agnext'?1:-1)*(agView==='sem'?7:1))}
   else if(a==='agtoday'){agDate=today()}
