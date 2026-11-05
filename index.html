@@ -255,7 +255,7 @@ function vPac(){
   <div id="p_cpfbox" style="display:${e.mesmo?'none':'block'}"><label>CPF do responsável financeiro *</label><input id="p_cpf" inputmode="numeric" maxlength="14" placeholder="000.000.000-00" value="${esc(e.mesmo?'':e.cpf)}"></div>
   <label>WhatsApp de quem recebe a cobrança (com DDD) *</label><input type="tel" id="p_tel" placeholder="11999998888" value="${esc(e.tel)}">
   <div class="grid"><div><label>Valor padrão da sessão (R$) *</label><input type="number" step="0.01" id="p_valor" value="${esc(e.valor)}"></div>
-  <div><label>Cobrar (dias após o atendimento) *</label><input type="number" id="p_off" placeholder="0 = no mesmo dia" value="${e.off==null?'':e.off}"></div></div>
+  <div><label>Cobrar (dias após o atendimento) *</label><input type="number" id="p_off" placeholder="0 = no mesmo dia" value="${e.off==null?'0':e.off}"></div></div>
   <div id="perr" style="color:var(--bad);font-weight:600;margin-top:8px"></div>
   <div class="btns"><button class="pri" data-a="savepat">Salvar</button>${editId?'<button data-a="cancelpat">Cancelar</button>':''}</div></div>
   <section class="zona z-lista"><h2>Lista de Pacientes (${S.patients.length})</h2>
@@ -333,7 +333,17 @@ document.addEventListener('click',e=>{
     chk('p_tel','WhatsApp com DDD (10 ou 11 dígitos)',ph.length===10||ph.length===11||(ph.length>=12&&ph.length<=13&&ph.startsWith('55')));
     chk('p_valor','valor da sessão maior que zero',parseFloat(g('p_valor'))>0);
     chk('p_off','dias para a cobrança',g('p_off')!==''&&!isNaN(parseInt(g('p_off'))));
-    if(falta.length){const el=$('#perr');el.textContent='Preencha corretamente: '+falta.join('; ')+'.';el.scrollIntoView({block:'center'});return}
+    const outros=S.patients.filter(x=>x.id!==editId),dup=[];
+    [['p_cpfpac','do paciente'],...(mesmo?[]:[['p_cpf','do responsável financeiro']])].forEach(([k,r])=>{
+      const d=dig(g(k));if(d.length!==11)return;
+      const o=outros.find(x=>dig(x.cpfpac)===d||dig(x.cpf)===d);
+      if(o){dup.push('o CPF '+r+' ('+fmtCpf(d)+') já está em uso no cadastro de '+o.nome);const el=$('#'+k);if(el)el.classList.add('err')}
+    });
+    if(falta.length||dup.length){
+      const msg=[];
+      if(dup.length)msg.push('Cadastro já existe: '+dup.join('; ')+'.');
+      if(falta.length)msg.push('Preencha corretamente: '+falta.join('; ')+'.');
+      const el=$('#perr');el.textContent=msg.join(' ');el.scrollIntoView({block:'center'});return}
     const o={id:editId||uid(),nome:g('p_nome'),nasc:g('p_nasc'),sexo:g('p_sexo'),mesmo,resp:mesmo?'':g('p_resp'),tel:g('p_tel'),cpf:fmtCpf(mesmo?g('p_cpfpac'):g('p_cpf')),cpfpac:fmtCpf(g('p_cpfpac')),valor:parseFloat(g('p_valor')),off:parseInt(g('p_off'))};
     if(editId)S.patients=S.patients.map(x=>x.id===editId?o:x);else S.patients.push(o);
     editId=null;save()}
