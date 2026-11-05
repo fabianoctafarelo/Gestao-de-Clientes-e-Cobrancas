@@ -192,7 +192,7 @@ function vNiver(){
 let agView='dia',agDate=null;
 const DIAS=['Domingo','Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado'];
 const diaNome=d=>DIAS[new Date(d+'T12:00:00').getDay()];
-const DEFL='Olá, {responsavel}! Tudo bem? Passando para lembrar do atendimento fonoaudiológico do(a) {paciente} {quando}, dia {data}{hora}.\n\nPor favor, confirme a presença respondendo apenas com o número:\n\n✅ *1* - SIM, confirmo\n❌ *2* - NÃO poderei comparecer\n\nObrigada!';
+const DEFL='Olá, {responsavel}! Tudo bem? Passando para lembrar do atendimento fonoaudiológico do(a) {paciente} {quando}, dia {data}{hora}.\n\nPor favor, confirme a presença respondendo apenas com o número:\n\n*1* - SIM, confirmo\n*2* - NÃO poderei comparecer (por favor, informe o motivo)\n\nObrigada!';
 function waLemb(s){
   const p=pat(s.pid);if(!p)return null;
   let ph=String(p.tel||'').replace(/\D/g,'').replace(/^0+/,'');
