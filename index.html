@@ -334,11 +334,8 @@ document.addEventListener('click',e=>{
     chk('p_valor','valor da sessão maior que zero',parseFloat(g('p_valor'))>0);
     chk('p_off','dias para a cobrança',g('p_off')!==''&&!isNaN(parseInt(g('p_off'))));
     const outros=S.patients.filter(x=>x.id!==editId),dup=[];
-    [['p_cpfpac','do paciente'],...(mesmo?[]:[['p_cpf','do responsável financeiro']])].forEach(([k,r])=>{
-      const d=dig(g(k));if(d.length!==11)return;
-      const o=outros.find(x=>dig(x.cpfpac)===d||dig(x.cpf)===d);
-      if(o){dup.push('o CPF '+r+' ('+fmtCpf(d)+') já está em uso no cadastro de '+o.nome);const el=$('#'+k);if(el)el.classList.add('err')}
-    });
+    {const d=dig(g('p_cpfpac')),o=d.length===11?outros.find(x=>dig(x.cpfpac)===d):null;
+      if(o){dup.push('o CPF do paciente ('+fmtCpf(d)+') já está em uso no cadastro de '+o.nome);const el=$('#p_cpfpac');if(el)el.classList.add('err')}}
     if(falta.length||dup.length){
       const msg=[];
       if(dup.length)msg.push('Cadastro já existe: '+dup.join('; ')+'.');
