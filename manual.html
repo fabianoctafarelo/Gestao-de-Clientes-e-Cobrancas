@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Manual do Sistema · Pacientes e Cobranças</title>
+<style>
+:root{--bg:#f6f7f9;--fg:#1c2330;--card:#fff;--mut:#667085;--bd:#dfe4ea;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#12161c;--fg:#e8ecf2;--card:#1b2129;--mut:#9aa5b4;--bd:#2c3540;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#12161c;--fg:#e8ecf2;--card:#1b2129;--mut:#9aa5b4;--bd:#2c3540;color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+.w{max-width:820px;margin:0 auto;padding:16px}
+h1{font-size:24px;margin:6px 0 4px}h2{font-size:17px;margin:18px 0 8px}
+.lead,small{color:var(--mut)}
+button{font:inherit;color:inherit;cursor:pointer}
+.box{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:10px 14px;margin:10px 0}
+.flow{display:flex;flex-wrap:wrap;gap:6px;align-items:stretch}
+.ar{align-self:center;font-weight:700;color:var(--mut)}
+.node{flex:1 1 130px;text-align:left;border:2px solid var(--c);border-radius:14px;padding:10px;background:color-mix(in srgb,var(--c) 7%,var(--card))}
+.node.on{background:color-mix(in srgb,var(--c) 20%,var(--card))}
+.node b{display:block;color:var(--c)}.node small{display:block;font-size:13px}
+.num,.sn{display:inline-grid;place-items:center;width:26px;height:26px;border-radius:50%;background:var(--c);color:#fff;font-weight:700;font-size:14px;flex:none}
+.tabs{display:flex;gap:6px;overflow-x:auto;padding:4px 0}
+.tabs button{border:1px solid var(--bd);background:var(--card);border-radius:99px;padding:7px 14px;white-space:nowrap}
+.tabs button.on{background:var(--c);border-color:var(--c);color:#fff}
+.panel{margin-top:8px;padding:14px;border:1px solid var(--bd);border-top:6px solid var(--c);border-radius:14px;background:color-mix(in srgb,var(--c) 6%,var(--bg))}
+.panel h2{margin:0 0 4px;color:var(--c);font-size:21px}
+.bar{height:8px;background:var(--bd);border-radius:99px;overflow:hidden;margin:8px 0 2px}.bar i{display:block;height:100%;background:var(--c)}
+.step:not(:last-child)::after{content:"↓";display:block;text-align:center;font-weight:700;color:var(--c);line-height:1.2}
+.sh{display:flex;gap:10px;align-items:center;width:100%;text-align:left;background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:10px 12px}
+.sh span:nth-child(2){flex:1}.sh b{display:block}
+.step.done .sh{border-color:var(--c)}.step.done .sn{background:var(--c)}
+.sd{border:1px solid var(--bd);border-top:0;border-radius:0 0 12px 12px;background:var(--card);padding:6px 14px 10px;margin-top:-6px}
+.sd ul{margin:6px 0;padding-left:20px}.rd{display:flex;gap:8px;align-items:center;margin-top:6px;font-weight:600;color:var(--c)}
+.rd input{width:20px;height:20px}
+.tip,.warn{border-left:5px solid;border-radius:8px;padding:8px 12px;margin:10px 0;background:var(--card)}
+.tip{border-color:#16a34a}.warn{border-color:#dc2626}
+.go{display:block;width:100%;margin-top:12px;padding:12px;border:0;border-radius:12px;background:var(--c);color:#fff;font-weight:700}
+.rs{background:none;border:0;color:var(--mut);text-decoration:underline;font-size:13px;padding:6px 0}
+@media(max-width:600px){.flow{flex-direction:column}.ar{align-self:center;transform:rotate(90deg)}}
+.sysbtn{display:inline-block;padding:8px 14px;border:1px solid var(--bd);border-radius:10px;background:var(--card);color:var(--fg);text-decoration:none;font-weight:600}
+</style></head><body><div class="w">
+<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><h1>Manual do Sistema</h1><a class="sysbtn" href="index.html">← Voltar ao sistema</a></div>
+<p class="lead">Pacientes e Cobranças · guia passo a passo, aba por aba.</p>
+<div class="box"><b>Antes de começar</b><ol style="margin:6px 0;padding-left:20px"><li>Abra o site e entre com seu e-mail e senha (uma vez por aparelho).</li><li>Quando aparecer o botão <b>Sair</b> no canto, você está conectada.</li><li>A frase “Banco de dados conectado · salvo às…” confirma que suas alterações foram gravadas.</li></ol></div>
+<h2>Comece por aqui: o caminho de um paciente</h2>
+<div class="flow" id="flow"></div>
+<p><small>Toque em uma etapa para abrir o passo a passo. A aba <b>Busca</b> serve de apoio em qualquer momento.</small></p>
+<h2>Escolha a aba</h2>
+<div class="tabs" id="tabs"></div>
+<div class="panel" id="panel"></div>
+<p style="text-align:center;margin-top:16px"><a class="sysbtn" href="index.html">← Voltar ao sistema</a></p>
+</div>
+<script>
+const T=[
+{id:"cadastro",n:"Cadastro",fl:"Cadastre o paciente",c:"#2563eb",para:"Cadastrar cada paciente uma única vez. Esses dados alimentam atendimentos, cobranças e mensagens de WhatsApp.",q:"Paciente novo, ou para corrigir dados.",s:[
+["Dados do paciente","Nome, nascimento, sexo e CPF",["Preencha os campos com * (todos obrigatórios).","O sexo é sugerido pelo primeiro nome (termina em a = Feminino, em o = Masculino) e pode ser trocado no menu.","O CPF é validado. Se outro paciente já tiver o mesmo CPF, o sistema bloqueia e avisa “Cadastro já existe”."]],
+["Nome do pai e da mãe","Opcionais, com atalho para o responsável",["Preencha, se quiser, o <b>Nome do pai</b> e o <b>Nome da mãe</b>.","Os botões <b>Usar Pai</b> e <b>Usar Mãe</b> copiam o nome para o Responsável financeiro e desmarcam “é o próprio paciente”. O campo continua editável para ajustes.","Esses nomes aparecem na Lista de Pacientes, na Busca e em “Ver dados” do atendimento."]],
+["Responsável financeiro","Quem paga as sessões",["Marque <b>“Responsável financeiro é o próprio paciente”</b>: o CPF digitado é copiado sozinho.","Se desmarcar, informe nome e CPF do responsável. O mesmo responsável pode ter vários pacientes."]],
+["WhatsApp","Número de quem recebe a cobrança",["Digite com DDD, por exemplo 11999998888.","É por esse número que abrem a cobrança e o lembrete."]],
+["Forma de pagamento","Pix, Dinheiro, Cartão ou Outros",["Escolha como o paciente costuma pagar: <b>Pix</b>, <b>Dinheiro</b>, <b>Cartão de Crédito</b>, <b>Cartão de Débito</b> ou <b>Outros</b> (obrigatório).","Quando você marca um atendimento como pago, essa forma é registrada e alimenta o Dashboard.","Pacientes antigos ficam sem forma até você editá-los e escolher uma."]],
+["Valor e prazo","Padrões usados nos atendimentos",["Informe o valor padrão da sessão.","“Cobrar (dias após o atendimento)” já vem com <b>0</b> (mesmo dia). Pode alterar."]],
+["Salvar e conferir","Veja na Lista de Pacientes",["Clique em <b>Salvar</b>. Se faltar algo, os campos ficam vermelhos com a explicação.","Para corrigir depois, use <b>Editar</b> na Lista de Pacientes."]]],
+w:"Excluir um paciente apaga também todos os atendimentos dele. O botão pede um segundo clique para confirmar.",t:"Sem WhatsApp cadastrado, os botões de cobrança e lembrete mostram o aviso “Cadastre o WhatsApp com DDD”."},
+{id:"atendimentos",n:"Agendamentos",fl:"Agende as sessões",c:"#7c3aed",para:"Agendar as sessões, com horário e duração. Cada agendamento gera uma cobrança com a data de envio já calculada.",q:"Ao agendar ou realizar uma sessão.",s:[
+["Escolha o paciente","O campo começa em branco",["Selecione o paciente no menu. Valor e dias de cobrança vêm do cadastro.","Você pode alterá-los só para este atendimento."]],
+["Tipo de atendimento","1 ou 2, para preencher mais rápido",["<b>1 - Primeira consulta</b>: duração de 1h30 (90 minutos).","<b>2 - Sessão normal</b>: duração de 1h (60 minutos). É a opção que já vem marcada."]],
+["Data, horário e duração","Horário e duração são obrigatórios",["Informe a data, o <b>horário de início</b> e a <b>duração</b> em minutos. A duração vem preenchida pelo tipo escolhido e pode ser alterada.","Se você veio de um horário livre da <b>Agenda</b>, a data e o horário já aparecem preenchidos.","Se o horário se sobrepuser a outro atendimento, o sistema avisa e pergunta se você quer salvar mesmo assim."]],
+["Repetir semanalmente","Para rotina fixa",["Em “nº de sessões”, digite quantas semanas seguidas criar (1 a 52).","Cada sessão tem a sua própria cobrança."]],
+["Salvar atendimento","Aviso em verde",["Aparece “Atendimento salvo”. Use <b>Ver todos os dados digitados</b> para conferir."]],
+["Histórico de Atendimentos","Por Paciente ou Por Data",["<b>Por Paciente</b> (padrão): clique no nome para abrir os atendimentos dele.","<b>Por Data</b>: lista única, do mais recente ao mais antigo.","Em cada atendimento: <b>Ver dados</b>, <b>Transcrição e resumo</b> e <b>Excluir</b>."]]],
+w:"Excluir um atendimento apaga também a cobrança e o pagamento dele. Não há como desfazer.",t:"Número negativo em “Cobrar (dias após)” envia a cobrança antes do atendimento."},
+{id:"agenda",n:"Agenda",fl:"Lembre e confirme",c:"#0f766e",para:"Ver a semana e os horários livres, lembrar os pacientes e acompanhar quem confirmou.",q:"Todo dia cedo e na véspera dos atendimentos.",s:[
+["Escolha a visão","Dia ou Semana",["Use <b>Dia</b> ou <b>Semana</b> e navegue com ◀ Hoje ▶ ou pelo seletor de data.","O topo resume: total, confirmados e sem lembrete."]],
+["Agenda visual da semana","Horários livres e ocupados",["Abaixo do quadro de resumo, escolha o dia (Seg a Dom) e use ‹ › para mudar de semana.","Os horários vão de 08:00 a 20:00, de 30 em 30 minutos: <b>livre</b> (contorno colorido), <b>ocupado</b> (laranja, com o nome do paciente; a sessão ocupa todos os horários da sua duração) e <b>passado</b> (esmaecido).","Toque em um horário livre: a aba Agendamentos abre com data e hora já preenchidas. Toque em um ocupado: a lista do dia mostra o atendimento."]],
+["Ajuste o horário","Se faltar",["Atendimentos antigos podem estar sem horário. Preencha no campo de horário do cartão."]],
+["Lembrar paciente","Abre o WhatsApp com a mensagem pronta",["Clique em <b>Lembrar paciente</b> e envie.","Use “Ver número e mensagem” para conferir antes."]],
+["Marcar lembrete enviado","Controle de quem já foi avisado",["Depois de enviar, clique em <b>Marcar lembrete enviado</b>. A etiqueta “sem lembrete” some."]],
+["Registrar a resposta","1 = confirma, 2 = não vai",["Resposta <b>1</b>: clique em <b>Marcar confirmado</b>.","Resposta <b>2</b>: pergunte o motivo e clique em <b>Atendimento cancelado</b> (dois cliques)."]]],
+w:"“Atendimento cancelado” remove o atendimento da Agenda e da aba Agendamentos, sem desfazer. O botão não aparece em atendimentos já pagos.",t:"Use a agenda visual ao marcar um paciente novo: o horário livre já leva você ao formulário com data e hora preenchidas. Os botões de lembrete só aparecem para hoje e datas futuras."},
+{id:"cobrancas",n:"Cobranças",fl:"Cobre e receba",c:"#d97706",para:"Acompanhar o dinheiro, do envio da cobrança ao pagamento, em quatro etapas coloridas na ordem do processo.",q:"No início do dia e quando chegar um comprovante.",s:[
+["Etapa 1 · Enviar agora (vermelho)","Vencidas ou de hoje",["Clique em <b>Abrir WhatsApp</b> e envie a mensagem pronta (com o Pix).","Depois clique em <b>Marcar como enviada</b>: o item vai para a etapa 2."]],
+["Etapa 2 · Aguardando pagamento (âmbar)","Esperando o comprovante",["Quando chegar o comprovante, clique em <b>Marcar pago</b>.","A forma de pagamento cadastrada do paciente fica registrada nesse pagamento.","Se esquecerem, use <b>Reenviar no WhatsApp</b>."]],
+["Etapa 3 · Agendadas (azul)","Ainda não chegou a data",["Nada a fazer agora. Se precisar, mude a data no campo de data do cartão."]],
+["Etapa 4 · Já pagos (verde)","Últimos 30 pagamentos",["Só consulta. Para desfazer um engano, clique em <b>Já pago ✓</b> e confirme."]],
+["Totais no topo","A receber e Recebido no mês",["<b>A receber</b>: tudo que ainda não foi pago.","<b>Recebido no mês</b>: pagamentos registrados no mês atual."]]],
+w:"“Marcar como enviada” não envia nada: só registra que você já mandou a mensagem.",t:"A etiqueta vermelha “enviar” mostra cobranças que já deveriam ter sido mandadas."},
+{id:"dashboard",n:"Dashboard",fl:"Acompanhe os números",c:"#16a34a",para:"Visão geral do consultório, só para consulta. Nada é digitado aqui.",q:"Toda semana ou todo mês.",s:[
+["Pacientes e aniversariantes","Total e aniversários do mês",["Nos círculos do dia: cinza já passou, preenchido é hoje."]],
+["Perfil por idade e sexo","Quem você atende",["Barras por faixa etária, divididas por sexo, com quantidades e percentuais."]],
+["Progressão da Produção (R$)","Atendimentos mês a mês",["Soma o valor dos atendimentos pela data em que ocorreram, pagos ou não, nos últimos 12 meses.","A linha laranja liga os totais de cada mês."]],
+["10 melhores pacientes","Por volume financeiro",["Ranking em ordem decrescente, com idade, total e número de atendimentos."]],
+["Recebido mês a mês","O que entrou no caixa, por forma de pagamento",["Considera a data do pagamento. Escolha o ano no seletor.","A tabela separa cada mês em <b>Pix</b>, <b>Dinheiro</b>, <b>Crédito</b>, <b>Débito</b> e <b>Outros</b>, com o total do mês e uma barra colorida por forma. No celular, deslize a tabela para o lado.","A última linha mostra o total do ano por forma e o total geral. “Não informado” aparece se houver pagamento de paciente sem forma cadastrada.","Pode diferir da Produção: atendimento de outubro pago em novembro entra no recebido de novembro."]],
+["Total geral recebido","Todos os períodos",["Abaixo da tabela, caixas mostram o total de cada forma de pagamento, com o percentual, e o total geral."]]],
+w:"",t:"Produção é o que foi atendido. Recebido é o que foi pago."},
+{id:"busca",n:"Busca",fl:"",c:"#64748b",para:"Localizar um cadastro rapidamente.",q:"Para achar um paciente ou conferir dados.",s:[
+["Digite na busca","Nome ou CPF",["Digite ao menos 2 letras do nome do paciente ou do responsável, ou ao menos 3 dígitos de CPF."]],
+["Veja o resultado","Dados completos",["Cada resultado mostra nascimento, CPFs, responsável, nome do pai e da mãe, WhatsApp, forma de pagamento, valor padrão e prazo de cobrança."]],
+["Editar cadastro","Atalho direto",["Clique em <b>Editar cadastro</b>: a aba Cadastro abre com os dados prontos para alterar."]]],
+w:"",t:"A busca ignora acentos e maiúsculas."}];
+const ORD=["cadastro","atendimentos","agenda","cobrancas","dashboard"],$=s=>document.querySelector(s),open={};
+let cur="cadastro",done={};
+try{done=JSON.parse(localStorage.getItem("manual_fono")||"{}")}catch(e){}
+const save=()=>{try{localStorage.setItem("manual_fono",JSON.stringify(done))}catch(e){}};
+const pg=t=>[t.s.filter((_,i)=>done[t.id+i]).length,t.s.length];
+function render(){
+  const t=T.find(x=>x.id===cur),[d,n]=pg(t),nx=ORD[ORD.indexOf(cur)+1],nt=nx&&T.find(x=>x.id===nx);
+  $("#flow").innerHTML=ORD.map((id,i)=>{const x=T.find(y=>y.id===id),[a,b]=pg(x);return(i?'<span class="ar">→</span>':'')+`<button class="node${id===cur?' on':''}" style="--c:${x.c}" data-go="${id}"><span class="num">${i+1}</span> <b style="display:inline">${x.n}</b><small>${x.fl}</small><small>${a} de ${b} passos lidos</small></button>`}).join("");
+  $("#tabs").innerHTML=T.map(x=>`<button class="${x.id===cur?'on':''}" style="--c:${x.c}" data-go="${x.id}">${x.n}</button>`).join("");
+  const p=$("#panel");p.style.setProperty("--c",t.c);
+  p.innerHTML=`<h2>${t.n}</h2><div>${t.para}</div><div><small><b>Quando usar:</b> ${t.q}</small></div>
+  <div class="bar"><i style="width:${d/n*100}%"></i></div><small>${d} de ${n} passos lidos <button class="rs" data-rs="1">recomeçar</button></small>
+  <h2 style="font-size:16px;color:var(--fg)">Siga os passos na ordem</h2>`+t.s.map((s,i)=>{const k=t.id+i;return `<div class="step${done[k]?' done':''}"><button class="sh" data-op="${k}" aria-expanded="${!!open[k]}"><span class="sn">${done[k]?'✓':i+1}</span><span><b>${s[0]}</b><small>${s[1]}</small></span><span>${open[k]?'▴':'▾'}</span></button>${open[k]?`<div class="sd"><ul>${s[2].map(x=>'<li>'+x+'</li>').join('')}</ul><label class="rd"><input type="checkbox" data-ck="${k}" ${done[k]?'checked':''}> Entendi este passo</label></div>`:''}</div>`}).join("")
+  +(t.w?`<div class="warn"><b>Atenção:</b> ${t.w}</div>`:'')+(t.t?`<div class="tip"><b>Dica:</b> ${t.t}</div>`:'')
+  +(nt?`<button class="go" data-go="${nx}">Próximo passo do fluxo: ${nt.n} →</button>`:`<button class="go" data-go="cadastro">Voltar ao início do fluxo</button>`);
+}
+function go(id){if(!T.some(x=>x.id===id))return;cur=id;if(location.hash!=="#"+id)location.hash=id;render();$("#tabs").scrollIntoView({block:"start"})}
+document.addEventListener("click",e=>{const b=e.target.closest("[data-go],[data-op],[data-rs]");if(!b)return;
+  if(b.dataset.go)go(b.dataset.go);else if(b.dataset.op){open[b.dataset.op]=!open[b.dataset.op];render()}
+  else{T.find(x=>x.id===cur).s.forEach((_,i)=>delete done[cur+i]);save();render()}});
+document.addEventListener("change",e=>{const k=e.target.dataset.ck;if(!k)return;if(e.target.checked)done[k]=1;else delete done[k];save();render()});
+window.addEventListener("hashchange",()=>{const h=location.hash.slice(1);if(h!==cur&&T.some(x=>x.id===h)){cur=h;render()}});
+{const h=location.hash.slice(1);if(T.some(x=>x.id===h))cur=h}
+render();
+</script></body></html>
