@@ -134,7 +134,9 @@ const today=()=>iso(new Date());
 const addDays=(s,n)=>{const d=new Date(s+'T12:00:00');d.setDate(d.getDate()+n);return iso(d)};
 const fd=s=>s?s.split('-').reverse().join('/'):'';
 const brl=n=>Number(n||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
-const age=s=>{if(!s)return'';const b=new Date(s+'T12:00:00'),n=new Date();let a=n.getFullYear()-b.getFullYear();if(n<new Date(n.getFullYear(),b.getMonth(),b.getDate()))a--;return a+' anos'};
+const age=s=>{if(!s)return'';const b=new Date(s+'T12:00:00'),n=new Date();let a=n.getFullYear()-b.getFullYear();if(n<new Date(n.getFullYear(),b.getMonth(),b.getDate()))a--;
+  if(a<1){let m=(n.getFullYear()-b.getFullYear())*12+n.getMonth()-b.getMonth();if(n.getDate()<b.getDate())m--;return m<1?'menos de 1 mês':m+(m===1?' mês':' meses')}
+  return a+(a===1?' ano':' anos')};
 const pat=id=>S.patients.find(p=>p.id===id);
 const resp=p=>p.mesmo?p.nome:(p.resp||p.nome);
 const fmtCpf=s=>String(s||'').replace(/\D/g,'').slice(0,11).replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d{1,2})$/,'$1-$2');
