@@ -37,8 +37,9 @@ button{font:inherit;color:inherit;cursor:pointer}
 .go{display:block;width:100%;margin-top:12px;padding:12px;border:0;border-radius:12px;background:var(--c);color:#fff;font-weight:700}
 .rs{background:none;border:0;color:var(--mut);text-decoration:underline;font-size:13px;padding:6px 0}
 @media(max-width:600px){.flow{flex-direction:column}.ar{align-self:center;transform:rotate(90deg)}}
+.sysbtn{display:inline-block;padding:8px 14px;border:1px solid var(--bd);border-radius:10px;background:var(--card);color:var(--fg);text-decoration:none;font-weight:600}
 </style></head><body><div class="w">
-<h1>Manual do Sistema</h1>
+<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><h1>Manual do Sistema</h1><a class="sysbtn" href="index.html">← Voltar ao sistema</a></div>
 <p class="lead">Pacientes e Cobranças · guia passo a passo, aba por aba.</p>
 <div class="box"><b>Antes de começar</b><ol style="margin:6px 0;padding-left:20px"><li>Abra o site e entre com seu e-mail e senha (uma vez por aparelho).</li><li>Quando aparecer o botão <b>Sair</b> no canto, você está conectada.</li><li>A frase “Banco de dados conectado · salvo às…” confirma que suas alterações foram gravadas.</li></ol></div>
 <h2>Comece por aqui: o caminho de um paciente</h2>
@@ -47,6 +48,7 @@ button{font:inherit;color:inherit;cursor:pointer}
 <h2>Escolha a aba</h2>
 <div class="tabs" id="tabs"></div>
 <div class="panel" id="panel"></div>
+<p style="text-align:center;margin-top:16px"><a class="sysbtn" href="index.html">← Voltar ao sistema</a></p>
 </div>
 <script>
 const T=[
