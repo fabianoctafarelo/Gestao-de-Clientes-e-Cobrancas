@@ -301,7 +301,7 @@ function buscaRes(){
   if(!r.length)return '<div class="card">Nenhum cadastro encontrado.</div>';
   const L=(k,v)=>`<div><span class="mut">${k}</span><br>${esc(v||'—')}</div>`;
   return `<h2>Resultado (${r.length})</h2>`+r.map(p=>`<div class="card"><div class="top"><b>${esc(p.nome)}</b><span class="mut">${esc(p.sexo)} · ${age(p.nasc)}</span></div>
-  <div class="grid" style="margin-top:6px">${L('Nascimento',fd(p.nasc))}${L('CPF do paciente',p.cpfpac)}${L('Responsável financeiro',p.mesmo?p.nome+' (o próprio paciente)':p.resp)}${L('CPF do responsável',p.cpf)}${L('WhatsApp',p.tel)}${L('Forma de pagamento',p.forma)}${L('Valor padrão da sessão',brl(p.valor))}${L('Cobrança',(p.off||0)+' dia(s) após o atendimento')}</div>
+  <div class="grid" style="margin-top:6px">${L('Nascimento',fd(p.nasc))}${L('CPF do paciente',p.cpfpac)}${L('Responsável financeiro',p.mesmo?p.nome+' (o próprio paciente)':p.resp)}${L('CPF do responsável',p.cpf)}${L('WhatsApp',p.tel)}${L('Forma de pagamento',p.forma)}${L('Nome do pai',p.nome_pai)}${L('Nome da mãe',p.nome_mae)}${L('Valor padrão da sessão',brl(p.valor))}${L('Cobrança',(p.off||0)+' dia(s) após o atendimento')}</div>
   <div class="btns"><button data-a="buscaedit" data-id="${p.id}">Editar cadastro</button></div></div>`).join('');
 }
 function vBusca(){
@@ -354,6 +354,9 @@ function vPac(){
   <div class="grid"><div><label>Data de nascimento *</label><input type="date" id="p_nasc" value="${esc(e.nasc)}"></div>
   <div><label>Sexo *</label><select id="p_sexo" data-a="p_sexo"><option value="">Selecione…</option>${['Feminino','Masculino','Outro'].map(x=>`<option${e.sexo===x?' selected':''}>${x}</option>`).join('')}</select></div></div>
   <label>CPF do paciente *</label><input id="p_cpfpac" inputmode="numeric" maxlength="14" placeholder="000.000.000-00" value="${esc(e.cpfpac)}">
+  <div class="grid"><div><label>Nome do pai (opcional)</label><input id="p_pai" value="${esc(e.nome_pai)}"><button data-a="usarpai" style="margin-top:6px">Usar Pai</button></div>
+  <div><label>Nome da mãe (opcional)</label><input id="p_mae" value="${esc(e.nome_mae)}"><button data-a="usarmae" style="margin-top:6px">Usar Mãe</button></div></div>
+  <div class="mut">Os botões copiam o nome para o Responsável financeiro, que continua editável.</div>
   <label class="chk"><input type="checkbox" id="p_mesmo" data-a="p_mesmo" ${e.mesmo?'checked':''}> Responsável financeiro é o próprio paciente</label>
   <div id="p_respbox" style="display:${e.mesmo?'none':'block'}"><label>Nome do responsável financeiro *</label><input id="p_resp" value="${esc(e.resp)}"></div>
   <div id="p_cpfbox" style="display:${e.mesmo?'none':'block'}"><label>CPF do responsável financeiro *</label><input id="p_cpf" inputmode="numeric" maxlength="14" placeholder="000.000.000-00" value="${esc(e.mesmo?'':e.cpf)}"></div>
@@ -365,7 +368,7 @@ function vPac(){
   <div class="btns"><button class="pri" data-a="savepat">Salvar</button>${editId?'<button data-a="cancelpat">Cancelar</button>':''}</div></div>
   <section class="zona z-lista"><h2>Lista de Pacientes (${S.patients.length})</h2>
   ${S.patients.map(p=>`<div class="card"><div class="top"><b>${esc(p.nome)}</b><span class="mut">${esc(p.sexo)} · ${age(p.nasc)}</span></div>
-  <div class="mut">Responsável: ${p.mesmo?'o próprio paciente':esc(p.resp)} · CPF paciente ${esc(p.cpfpac||'não informado')} · CPF resp. ${esc(p.cpf||'não informado')} · ${esc(p.tel||'sem WhatsApp')} · ${brl(p.valor)} · ${esc(p.forma||'forma de pagamento não informada')} · cobrança ${p.off||0} dia(s) após</div>
+  <div class="mut">Responsável: ${p.mesmo?'o próprio paciente':esc(p.resp)} · CPF paciente ${esc(p.cpfpac||'não informado')} · CPF resp. ${esc(p.cpf||'não informado')} · ${esc(p.tel||'sem WhatsApp')} · ${brl(p.valor)} · ${esc(p.forma||'forma de pagamento não informada')}${p.nome_pai?' · Pai: '+esc(p.nome_pai):''}${p.nome_mae?' · Mãe: '+esc(p.nome_mae):''} · cobrança ${p.off||0} dia(s) após</div>
   <div class="btns"><button data-a="editpat" data-id="${p.id}">Editar</button><button data-a="delpat" data-id="${p.id}">Excluir</button></div></div>`).join('')}</section>`;
 }
 function vRel(){
@@ -447,7 +450,7 @@ document.addEventListener('click',e=>{
       if(dup.length)msg.push('Cadastro já existe: '+dup.join('; ')+'.');
       if(falta.length)msg.push('Preencha corretamente: '+falta.join('; ')+'.');
       const el=$('#perr');el.textContent=msg.join(' ');el.scrollIntoView({block:'center'});return}
-    const o={id:editId||uid(),nome:g('p_nome'),nasc:g('p_nasc'),sexo:g('p_sexo'),mesmo,resp:mesmo?'':g('p_resp'),tel:g('p_tel'),forma:g('p_forma'),cpf:fmtCpf(mesmo?g('p_cpfpac'):g('p_cpf')),cpfpac:fmtCpf(g('p_cpfpac')),valor:parseFloat(g('p_valor')),off:parseInt(g('p_off'))};
+    const o={id:editId||uid(),nome:g('p_nome'),nasc:g('p_nasc'),sexo:g('p_sexo'),mesmo,resp:mesmo?'':g('p_resp'),tel:g('p_tel'),forma:g('p_forma'),...(g('p_pai')?{nome_pai:g('p_pai')}:{}),...(g('p_mae')?{nome_mae:g('p_mae')}:{}),cpf:fmtCpf(mesmo?g('p_cpfpac'):g('p_cpf')),cpfpac:fmtCpf(g('p_cpfpac')),valor:parseFloat(g('p_valor')),off:parseInt(g('p_off'))};
     if(editId)S.patients=S.patients.map(x=>x.id===editId?o:x);else S.patients.push(o);
     editId=null;save()}
   else if(a==='addses'){
@@ -464,6 +467,13 @@ document.addEventListener('click',e=>{
   else if(a==='agwprev'||a==='agwnext'){agDate=addDays(agDate||today(),a==='agwnext'?7:-7)}
   else if(a==='slotocc'){agDate=id.split('T')[0];agView='dia'}
   else if(a==='slot'){const [d,h]=id.split('T');prefill={data:d,hora:h};tab='atd';editId=null;setTimeout(()=>window.scrollTo({top:0,behavior:'smooth'}),0)}
+  else if(a==='usarpai'||a==='usarmae'){
+    const src=$(a==='usarpai'?'#p_pai':'#p_mae'),nome=src?src.value.trim():'';
+    if(!nome){toast('Preencha primeiro o nome '+(a==='usarpai'?'do pai':'da mãe')+'.');return}
+    const mm=$('#p_mesmo');if(mm)mm.checked=false;
+    $('#p_respbox').style.display='block';$('#p_cpfbox').style.display='block';
+    const r=$('#p_resp');r.value=nome;r.classList.remove('err');
+    const c=$('#p_cpf');if(c)c.focus();return}
   else if(a==='tipoatd'){tipoAtd=id==='primeira'?'primeira':'normal';const d=$('#a_dur');if(d)d.value=tipoAtd==='primeira'?90:60;document.querySelectorAll('[data-a="tipoatd"]').forEach(x=>x.classList.toggle('on',x.dataset.id===tipoAtd));return}
   else if(a==='agview'){agView=id==='sem'?'sem':'dia'}
   else if(a==='agprev'||a==='agnext'){agDate=addDays(agDate||today(),(a==='agnext'?1:-1)*(agView==='sem'?7:1))}
