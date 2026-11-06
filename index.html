@@ -338,12 +338,21 @@ function vAtd(){
   <div class="btns"><button class="pri" data-a="addses">Salvar atendimento</button></div></div>
   ${justSaved&&lastId?`<div class="card" style="border-color:var(--ok)"><b style="color:var(--ok)">${justSaved>1?justSaved+' atendimentos salvos':'Atendimento salvo'}.</b><div class="btns"><button class="pri" data-a="vdados" data-id="${lastId}">Ver todos os dados digitados</button></div></div>`:''}<section class="zona z-hist"><h2>Histórico de Atendimentos (${list.length})</h2><div class="seg"><button class="${histModo==='data'?'on':''}" data-a="histmodo" data-id="data">Por Data</button><button class="${histModo==='pac'?'on':''}" data-a="histmodo" data-id="pac">Por Paciente</button></div>${histModo==='data'?list.map(s=>sesCard(s,true)).join(''):gruposAtd(list)}</section>`;
 }
+let sexoAuto=null;
+function autoSexo(n){
+  const sel=document.getElementById('p_sexo');if(!sel)return;
+  const w=String(n||'').trim().split(/\s+/)[0].normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase(),
+  g=/a$/.test(w)?'Feminino':/o$/.test(w)?'Masculino':null;
+  if(g){if(sel.value===''||sel.value===sexoAuto){sel.value=g;sexoAuto=g}}
+  else if(sexoAuto&&sel.value===sexoAuto){sel.value='';sexoAuto=null}
+}
 function vPac(){
+  sexoAuto=null;
   const e=S.patients.find(p=>p.id===editId)||{mesmo:true};
   return `<div class="card"><b>${editId?'Editar paciente':'Novo paciente'}</b><div class="mut">Todos os campos marcados com * são obrigatórios.</div>
   <label>Nome do paciente *</label><input id="p_nome" value="${esc(e.nome)}">
   <div class="grid"><div><label>Data de nascimento *</label><input type="date" id="p_nasc" value="${esc(e.nasc)}"></div>
-  <div><label>Sexo *</label><select id="p_sexo"><option value="">Selecione…</option>${['Feminino','Masculino','Outro'].map(x=>`<option${e.sexo===x?' selected':''}>${x}</option>`).join('')}</select></div></div>
+  <div><label>Sexo *</label><select id="p_sexo" data-a="p_sexo"><option value="">Selecione…</option>${['Feminino','Masculino','Outro'].map(x=>`<option${e.sexo===x?' selected':''}>${x}</option>`).join('')}</select></div></div>
   <label>CPF do paciente *</label><input id="p_cpfpac" inputmode="numeric" maxlength="14" placeholder="000.000.000-00" value="${esc(e.cpfpac)}">
   <label class="chk"><input type="checkbox" id="p_mesmo" data-a="p_mesmo" ${e.mesmo?'checked':''}> Responsável financeiro é o próprio paciente</label>
   <div id="p_respbox" style="display:${e.mesmo?'none':'block'}"><label>Nome do responsável financeiro *</label><input id="p_resp" value="${esc(e.resp)}"></div>
@@ -481,11 +490,12 @@ document.addEventListener('change',e=>{
   else if(a==='agdate'){if(t.value){agDate=t.value;render()}}
   else if(a==='horachg'){const s=S.sessions.find(x=>x.id===t.dataset.id);if(s){if(t.value)s.hora=t.value;else delete s.hora;save();render()}}
   else if(a==='a_pid'){const p=pat(t.value);if(p){$('#a_valor').value=p.valor||'';$('#a_off').value=p.off||0}else{$('#a_valor').value='';$('#a_off').value=0}}
+  else if(a==='p_sexo'){sexoAuto=null}
   else if(a==='p_mesmo'){$('#p_respbox').style.display=t.checked?'none':'block';$('#p_cpfbox').style.display=t.checked?'none':'block'}
   else if(a==='tpl'){S.tpl=t.value||DEF;save()}
   else if(a==='trsave'||a==='ressave'){const s=S.sessions.find(x=>x.id===t.dataset.id);if(s){if(a==='trsave')s.transc=t.value;else s.resumo=t.value;save()}}
 });
-document.addEventListener('input',e=>{if(e.target.classList)e.target.classList.remove('err');if(e.target.id==='q'){qBusca=e.target.value;const r=document.getElementById('qres');if(r)r.innerHTML=buscaRes()}if((e.target.id==='p_cpf'||e.target.id==='p_cpfpac'))e.target.value=fmtCpf(e.target.value)});
+document.addEventListener('input',e=>{if(e.target.classList)e.target.classList.remove('err');if(e.target.id==='q'){qBusca=e.target.value;const r=document.getElementById('qres');if(r)r.innerHTML=buscaRes()}if(e.target.id==='p_nome')autoSexo(e.target.value);if((e.target.id==='p_cpf'||e.target.id==='p_cpfpac'))e.target.value=fmtCpf(e.target.value)});
 let sbClient=null;
 function getCfg(){
   if(SUPABASE_URL&&SUPABASE_ANON_KEY)return{url:SUPABASE_URL,key:SUPABASE_ANON_KEY};
