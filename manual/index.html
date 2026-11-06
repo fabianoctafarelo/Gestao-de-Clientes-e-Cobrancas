@@ -51,9 +51,11 @@ button{font:inherit;color:inherit;cursor:pointer}
 <script>
 const T=[
 {id:"cadastro",n:"Cadastro",fl:"Cadastre o paciente",c:"#2563eb",para:"Cadastrar cada paciente uma única vez. Esses dados alimentam atendimentos, cobranças e mensagens de WhatsApp.",q:"Paciente novo, ou para corrigir dados.",s:[
-["Dados do paciente","Nome, nascimento, sexo e CPF",["Preencha os campos com * (todos obrigatórios).","O CPF é validado. Se outro paciente já tiver o mesmo CPF, o sistema bloqueia e avisa “Cadastro já existe”."]],
+["Dados do paciente","Nome, nascimento, sexo e CPF",["Preencha os campos com * (todos obrigatórios).","O sexo é sugerido pelo primeiro nome (termina em a = Feminino, em o = Masculino) e pode ser trocado no menu.","O CPF é validado. Se outro paciente já tiver o mesmo CPF, o sistema bloqueia e avisa “Cadastro já existe”."]],
+["Nome do pai e da mãe","Opcionais, com atalho para o responsável",["Preencha, se quiser, o <b>Nome do pai</b> e o <b>Nome da mãe</b>.","Os botões <b>Usar Pai</b> e <b>Usar Mãe</b> copiam o nome para o Responsável financeiro e desmarcam “é o próprio paciente”. O campo continua editável para ajustes.","Esses nomes aparecem na Lista de Pacientes, na Busca e em “Ver dados” do atendimento."]],
 ["Responsável financeiro","Quem paga as sessões",["Marque <b>“Responsável financeiro é o próprio paciente”</b>: o CPF digitado é copiado sozinho.","Se desmarcar, informe nome e CPF do responsável. O mesmo responsável pode ter vários pacientes."]],
 ["WhatsApp","Número de quem recebe a cobrança",["Digite com DDD, por exemplo 11999998888.","É por esse número que abrem a cobrança e o lembrete."]],
+["Forma de pagamento","Pix, Dinheiro, Cartão ou Outros",["Escolha como o paciente costuma pagar: <b>Pix</b>, <b>Dinheiro</b>, <b>Cartão de Crédito</b>, <b>Cartão de Débito</b> ou <b>Outros</b> (obrigatório).","Quando você marca um atendimento como pago, essa forma é registrada e alimenta o Dashboard.","Pacientes antigos ficam sem forma até você editá-los e escolher uma."]],
 ["Valor e prazo","Padrões usados nos atendimentos",["Informe o valor padrão da sessão.","“Cobrar (dias após o atendimento)” já vem com <b>0</b> (mesmo dia). Pode alterar."]],
 ["Salvar e conferir","Veja na Lista de Pacientes",["Clique em <b>Salvar</b>. Se faltar algo, os campos ficam vermelhos com a explicação.","Para corrigir depois, use <b>Editar</b> na Lista de Pacientes."]]],
 w:"Excluir um paciente apaga também todos os atendimentos dele. O botão pede um segundo clique para confirmar.",t:"Sem WhatsApp cadastrado, os botões de cobrança e lembrete mostram o aviso “Cadastre o WhatsApp com DDD”."},
@@ -75,7 +77,7 @@ w:"Excluir um atendimento apaga também a cobrança e o pagamento dele. Não há
 w:"“Atendimento cancelado” remove o atendimento da Agenda e da aba Agendamentos, sem desfazer. O botão não aparece em atendimentos já pagos.",t:"Use a agenda visual ao marcar um paciente novo: o horário livre já leva você ao formulário com data e hora preenchidas. Os botões de lembrete só aparecem para hoje e datas futuras."},
 {id:"cobrancas",n:"Cobranças",fl:"Cobre e receba",c:"#d97706",para:"Acompanhar o dinheiro, do envio da cobrança ao pagamento, em quatro etapas coloridas na ordem do processo.",q:"No início do dia e quando chegar um comprovante.",s:[
 ["Etapa 1 · Enviar agora (vermelho)","Vencidas ou de hoje",["Clique em <b>Abrir WhatsApp</b> e envie a mensagem pronta (com o Pix).","Depois clique em <b>Marcar como enviada</b>: o item vai para a etapa 2."]],
-["Etapa 2 · Aguardando pagamento (âmbar)","Esperando o comprovante",["Quando chegar o comprovante, clique em <b>Marcar pago</b>.","Se esquecerem, use <b>Reenviar no WhatsApp</b>."]],
+["Etapa 2 · Aguardando pagamento (âmbar)","Esperando o comprovante",["Quando chegar o comprovante, clique em <b>Marcar pago</b>.","A forma de pagamento cadastrada do paciente fica registrada nesse pagamento.","Se esquecerem, use <b>Reenviar no WhatsApp</b>."]],
 ["Etapa 3 · Agendadas (azul)","Ainda não chegou a data",["Nada a fazer agora. Se precisar, mude a data no campo de data do cartão."]],
 ["Etapa 4 · Já pagos (verde)","Últimos 30 pagamentos",["Só consulta. Para desfazer um engano, clique em <b>Já pago ✓</b> e confirme."]],
 ["Totais no topo","A receber e Recebido no mês",["<b>A receber</b>: tudo que ainda não foi pago.","<b>Recebido no mês</b>: pagamentos registrados no mês atual."]]],
@@ -85,11 +87,12 @@ w:"“Marcar como enviada” não envia nada: só registra que você já mandou 
 ["Perfil por idade e sexo","Quem você atende",["Barras por faixa etária, divididas por sexo, com quantidades e percentuais."]],
 ["Progressão da Produção (R$)","Atendimentos mês a mês",["Soma o valor dos atendimentos pela data em que ocorreram, pagos ou não, nos últimos 12 meses.","A linha laranja liga os totais de cada mês."]],
 ["10 melhores pacientes","Por volume financeiro",["Ranking em ordem decrescente, com idade, total e número de atendimentos."]],
-["Recebido mês a mês","O que entrou no caixa",["Considera a data do pagamento. Escolha o ano no seletor.","Pode diferir da Produção: atendimento de outubro pago em novembro entra no recebido de novembro."]]],
+["Recebido mês a mês","O que entrou no caixa, por forma de pagamento",["Considera a data do pagamento. Escolha o ano no seletor.","A tabela separa cada mês em <b>Pix</b>, <b>Dinheiro</b>, <b>Crédito</b>, <b>Débito</b> e <b>Outros</b>, com o total do mês e uma barra colorida por forma. No celular, deslize a tabela para o lado.","A última linha mostra o total do ano por forma e o total geral. “Não informado” aparece se houver pagamento de paciente sem forma cadastrada.","Pode diferir da Produção: atendimento de outubro pago em novembro entra no recebido de novembro."]],
+["Total geral recebido","Todos os períodos",["Abaixo da tabela, caixas mostram o total de cada forma de pagamento, com o percentual, e o total geral."]]],
 w:"",t:"Produção é o que foi atendido. Recebido é o que foi pago."},
 {id:"busca",n:"Busca",fl:"",c:"#64748b",para:"Localizar um cadastro rapidamente.",q:"Para achar um paciente ou conferir dados.",s:[
 ["Digite na busca","Nome ou CPF",["Digite ao menos 2 letras do nome do paciente ou do responsável, ou ao menos 3 dígitos de CPF."]],
-["Veja o resultado","Dados completos",["Cada resultado mostra nascimento, CPFs, responsável, WhatsApp, valor padrão e prazo de cobrança."]],
+["Veja o resultado","Dados completos",["Cada resultado mostra nascimento, CPFs, responsável, nome do pai e da mãe, WhatsApp, forma de pagamento, valor padrão e prazo de cobrança."]],
 ["Editar cadastro","Atalho direto",["Clique em <b>Editar cadastro</b>: a aba Cadastro abre com os dados prontos para alterar."]]],
 w:"",t:"A busca ignora acentos e maiúsculas."}];
 const ORD=["cadastro","atendimentos","agenda","cobrancas","dashboard"],$=s=>document.querySelector(s),open={};
