@@ -88,6 +88,12 @@ textarea{min-height:90px}
 .sl.busy{background:color-mix(in srgb,#d97706 22%,var(--card));border-color:#d97706}.sl.busy small{color:var(--fg)}
 .sl.past{opacity:.45;cursor:default}
 .seg{flex-wrap:wrap}
+.rt{display:grid;gap:6px;align-items:start;padding:5px 0;border-top:1px solid var(--bd);font-size:12.5px}
+.rt>span:not(:first-child){text-align:right}
+.rt.h{font-weight:600;color:var(--mut);border-top:0}
+.rt.cur{font-weight:600}
+.rt.tot{border-top:2px solid var(--bd);font-weight:700}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px}
 </style></head><body><main>
 <div class="top"><h1>Pacientes e Cobranças</h1><div><button id="lo" data-a="logout" style="display:none">Sair</button></div></div>
 <div id="st" class="mut"></div>
@@ -142,7 +148,7 @@ function dadosBox(s){
   const p=pat(s.pid)||{},L=(k,v)=>`<div><span class="mut">${k}</span><br>${esc(v||'—')}</div>`,
   dias=Math.round((new Date(s.cob+'T12:00:00')-new Date(s.data+'T12:00:00'))/864e5);
   return `<div class="card" style="background:var(--bg)"><b>Dados do atendimento</b>
-  <div class="grid" style="margin-top:6px">${L('Paciente',p.nome)}${L('Nascimento',p.nasc?fd(p.nasc)+' ('+age(p.nasc)+')':'')}${L('Sexo',p.sexo)}${L('Responsável financeiro',p.mesmo?(p.nome||'')+' (o próprio paciente)':p.resp)}${L('CPF do paciente',p.cpfpac)}${L('CPF do responsável',p.cpf)}${L('WhatsApp',p.tel)}${L('Data do atendimento',fd(s.data))}${L('Horário',s.hora?s.hora+(s.dur?' (duração '+s.dur+' min)':''):'')}${L('Valor',brl(s.valor))}${L('Data da cobrança',fd(s.cob)+' ('+(dias===0?'no mesmo dia':dias>0?dias+' dia(s) após':(-dias)+' dia(s) antes')+')')}${L('Série',s.rep>1?'Sessão '+s.seq+' de '+s.rep:'Sessão única')}${L('Cobrança enviada',s.env?fd(s.env):'Não')}${L('Pagamento',s.pago?'Pago em '+fd(s.pago):'Pendente')}</div>
+  <div class="grid" style="margin-top:6px">${L('Paciente',p.nome)}${L('Nascimento',p.nasc?fd(p.nasc)+' ('+age(p.nasc)+')':'')}${L('Sexo',p.sexo)}${L('Responsável financeiro',p.mesmo?(p.nome||'')+' (o próprio paciente)':p.resp)}${L('CPF do paciente',p.cpfpac)}${L('CPF do responsável',p.cpf)}${L('WhatsApp',p.tel)}${L('Data do atendimento',fd(s.data))}${L('Horário',s.hora?s.hora+(s.dur?' (duração '+s.dur+' min)':''):'')}${L('Valor',brl(s.valor))}${L('Forma de pagamento',s.forma||p.forma)}${L('Data da cobrança',fd(s.cob)+' ('+(dias===0?'no mesmo dia':dias>0?dias+' dia(s) após':(-dias)+' dia(s) antes')+')')}${L('Série',s.rep>1?'Sessão '+s.seq+' de '+s.rep:'Sessão única')}${L('Cobrança enviada',s.env?fd(s.env):'Não')}${L('Pagamento',s.pago?'Pago em '+fd(s.pago):'Pendente')}</div>
   ${s.transc?`<label>Transcrição</label><div style="white-space:pre-wrap">${esc(s.transc)}</div>`:''}${s.resumo?`<label>Resumo</label><div style="white-space:pre-wrap">${esc(s.resumo)}</div>`:''}</div>`;
 }
 function recBox(s){
@@ -168,7 +174,7 @@ function row(s){
   const bEnv=s.env?`<button class="st done" data-a="delenv" data-id="${s.id}">Cobrança enviada ✓</button>`:`<button class="st go" data-a="enviada" data-id="${s.id}">Marcar como enviada</button>`;
   const bPg=s.pago?`<button class="st done" data-a="delpg" data-id="${s.id}">Já pago ✓</button>`:`<button class="st go" data-a="pago" data-id="${s.id}">Marcar pago</button>`;
   return `<div class="card"><div class="top"><b>${esc(p.nome)}</b><span>${brl(s.valor)}</span></div>
-  <div class="mut">Atendimento ${fd(s.data)} · cobrar em ${fd(s.cob)}
+  <div class="mut">Atendimento ${fd(s.data)} · cobrar em ${fd(s.cob)}${p.forma?' · '+esc(p.forma):''}
   ${late?'<span class="tag bad">enviar</span>':''}${s.env?'<span class="tag">enviada '+fd(s.env)+'</span>':''}${s.pago?'<span class="tag ok">pago '+fd(s.pago)+'</span>':''}</div>
   <div class="btns">${s.pago?'':waBtn(s,w)}${bEnv}${bPg}${s.pago?'':`<input type="date" value="${s.cob}" data-a="cobchg" data-id="${s.id}" title="Data da cobrança">`}</div>${w&&!s.pago?`<details><summary class="mut">Ver número e mensagem</summary><div class="mut">Para: ${w.ok?'+'+w.ph:'(sem número válido)'}<br>${esc(w.msg)}</div></details>`:''}</div>`;
 }
@@ -261,17 +267,29 @@ function vAg(){
   <div class="btns"><button data-a="agprev" title="Anterior">◀</button><button data-a="agtoday">Hoje</button><button data-a="agnext" title="Próximo">▶</button><input type="date" value="${agDate}" data-a="agdate"></div>
   <div style="margin-top:8px"><b>${tit}</b></div><div class="mut">${all.length} atendimento${all.length===1?'':'s'}${fut.length?' · '+nConf+' confirmado'+(nConf===1?'':'s')+' · '+nSem+' sem lembrete':''}</div></div>${agVisual()}${corpo}`;
 }
+const PAGTO=['Pix','Dinheiro','Cartão de Crédito','Cartão de Débito','Outros'];
+const FORMAS=[['Pix','#0d9488','Pix'],['Dinheiro','#d97706','Dinheiro'],['Cartão de Crédito','#7c3aed','Crédito'],['Cartão de Débito','#2563eb','Débito'],['Outros','#db2777','Outros'],['Não informado','#94a3b8','Não inf.']];
+const formaOf=s=>{const f=s.forma||(pat(s.pid)||{}).forma;return PAGTO.includes(f)?f:'Não informado'};
 function vRecebido(){
   const m=today().slice(0,7),MES=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
   const sum=a=>a.reduce((x,s)=>x+Number(s.valor||0),0),pagos=S.sessions.filter(s=>s.pago);
   const anos=[...new Set([m.slice(0,4),...pagos.map(s=>s.pago.slice(0,4))])].sort().reverse();
   if(!ano||!anos.includes(ano))ano=m.slice(0,4);
-  const porMes=MES.map((_,i)=>{const k=ano+'-'+String(i+1).padStart(2,'0'),a=pagos.filter(s=>s.pago.slice(0,7)===k);return{k,n:a.length,v:sum(a)}});
-  const totAno=porMes.reduce((x,r)=>x+r.v,0),nAno=porMes.reduce((x,r)=>x+r.n,0),mx=Math.max(...porMes.map(r=>r.v),1);
-  return `<h2>Recebido mês a mês</h2><div class="card"><select id="ano" data-a="ano" style="width:auto;margin-bottom:6px">${anos.map(y=>`<option${y===ano?' selected':''}>${y}</option>`).join('')}</select>
-  ${porMes.map((r,i)=>`<div class="mrow${r.k===m?' cur':''}"><span>${MES[i]}</span><span class="bar"><i style="width:${(r.v/mx*100).toFixed(1)}%"></i></span><span>${brl(r.v)}${r.n?` <span class="mut">(${r.n})</span>`:''}</span></div>`).join('')}
-  <div class="mtot"><span>Total de ${ano} <span class="mut" style="font-weight:400">(${nAno} atendimentos)</span></span><span>${brl(totAno)}</span></div>
-  <div class="mut" style="margin-top:6px">Valores por data de pagamento; entre parênteses, o nº de atendimentos pagos.</div></div>`;
+  const tot=a=>{const r={n:a.length};FORMAS.forEach(([f])=>r[f]=sum(a.filter(s=>formaOf(s)===f)));r.total=FORMAS.reduce((x,[f])=>x+r[f],0);return r};
+  const porMes=MES.map((_,i)=>{const k=ano+'-'+String(i+1).padStart(2,'0');return Object.assign({k},tot(pagos.filter(s=>s.pago.slice(0,7)===k)))});
+  const doAno=tot(pagos.filter(s=>s.pago.slice(0,4)===ano)),geral=tot(pagos);
+  const cols=FORMAS.filter(([f])=>f!=='Não informado'||geral[f]>0);
+  const mx=Math.max(...porMes.map(r=>r.total),1),gt=`style="grid-template-columns:40px repeat(${cols.length},1fr) 1.25fr"`;
+  const nf=v=>v?Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}):'—';
+  const pc=(v,t)=>(t?Math.round(v/t*100):0)+'%';
+  const head=`<div class="rt h" ${gt}><span>Mês</span>${cols.map(([f,c,sh])=>`<span title="${f}"><i class="dot" style="background:${c}"></i>${sh}</span>`).join('')}<span>Total</span></div>`;
+  const rows=porMes.map((r,i)=>`<div class="rt${r.k===m?' cur':''}" ${gt}><span>${MES[i]}</span>${cols.map(([f])=>`<span>${nf(r[f])}</span>`).join('')}<span>${nf(r.total)}${r.n?` <span class="mut">(${r.n})</span>`:''}<span class="bar" style="display:flex;margin-top:3px">${cols.map(([f,c])=>r[f]?`<i style="width:${(r[f]/mx*100).toFixed(1)}%;background:${c}"></i>`:'').join('')}</span></span></div>`).join('');
+  const tr=`<div class="rt tot" ${gt}><span>Total</span>${cols.map(([f])=>`<span>${nf(doAno[f])}</span>`).join('')}<span>${nf(doAno.total)}</span></div>`;
+  const box=(l,v,t,c)=>`<div><span class="mut">${c?`<i class="dot" style="background:${c}"></i>`:''}${l}</span><b>${brl(v)}</b>${t!=null?`<span class="mut">${pc(v,t)} do total</span>`:''}</div>`;
+  return `<h2>Recebido mês a mês (R$)</h2><div class="card"><select id="ano" data-a="ano" style="width:auto;margin-bottom:6px">${anos.map(y=>`<option${y===ano?' selected':''}>${y}</option>`).join('')}</select>
+  <div style="overflow-x:auto"><div style="min-width:${150+cols.length*78}px">${head}${rows}${tr}</div></div>
+  <div class="mut" style="margin-top:6px">Total de ${ano}: ${brl(doAno.total)} em ${doAno.n} atendimentos pagos${cols.filter(([f])=>doAno[f]>0).map(([f])=>' · '+f+' '+pc(doAno[f],doAno.total)).join('')}. Valores por data de pagamento; entre parênteses, o nº de atendimentos pagos no mês.${geral['Não informado']>0?' “Não informado” são pagamentos de pacientes cadastrados sem forma de pagamento.':''}</div></div>
+  <h2>Total geral recebido (todos os períodos)</h2><div class="sum">${cols.map(([f,c])=>box(f,geral[f],geral.total,c)).join('')}${box('Total geral',geral.total,null,'')}</div>`;
 }
 const norm=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
 const dig=s=>String(s||'').replace(/\D/g,'');
@@ -283,7 +301,7 @@ function buscaRes(){
   if(!r.length)return '<div class="card">Nenhum cadastro encontrado.</div>';
   const L=(k,v)=>`<div><span class="mut">${k}</span><br>${esc(v||'—')}</div>`;
   return `<h2>Resultado (${r.length})</h2>`+r.map(p=>`<div class="card"><div class="top"><b>${esc(p.nome)}</b><span class="mut">${esc(p.sexo)} · ${age(p.nasc)}</span></div>
-  <div class="grid" style="margin-top:6px">${L('Nascimento',fd(p.nasc))}${L('CPF do paciente',p.cpfpac)}${L('Responsável financeiro',p.mesmo?p.nome+' (o próprio paciente)':p.resp)}${L('CPF do responsável',p.cpf)}${L('WhatsApp',p.tel)}${L('Valor padrão da sessão',brl(p.valor))}${L('Cobrança',(p.off||0)+' dia(s) após o atendimento')}</div>
+  <div class="grid" style="margin-top:6px">${L('Nascimento',fd(p.nasc))}${L('CPF do paciente',p.cpfpac)}${L('Responsável financeiro',p.mesmo?p.nome+' (o próprio paciente)':p.resp)}${L('CPF do responsável',p.cpf)}${L('WhatsApp',p.tel)}${L('Forma de pagamento',p.forma)}${L('Valor padrão da sessão',brl(p.valor))}${L('Cobrança',(p.off||0)+' dia(s) após o atendimento')}</div>
   <div class="btns"><button data-a="buscaedit" data-id="${p.id}">Editar cadastro</button></div></div>`).join('');
 }
 function vBusca(){
@@ -331,13 +349,14 @@ function vPac(){
   <div id="p_respbox" style="display:${e.mesmo?'none':'block'}"><label>Nome do responsável financeiro *</label><input id="p_resp" value="${esc(e.resp)}"></div>
   <div id="p_cpfbox" style="display:${e.mesmo?'none':'block'}"><label>CPF do responsável financeiro *</label><input id="p_cpf" inputmode="numeric" maxlength="14" placeholder="000.000.000-00" value="${esc(e.mesmo?'':e.cpf)}"></div>
   <label>WhatsApp de quem recebe a cobrança (com DDD) *</label><input type="tel" id="p_tel" placeholder="11999998888" value="${esc(e.tel)}">
+  <label>Forma de pagamento *</label><select id="p_forma"><option value="">Selecione…</option>${PAGTO.map(x=>`<option${e.forma===x?' selected':''}>${x}</option>`).join('')}</select>
   <div class="grid"><div><label>Valor padrão da sessão (R$) *</label><input type="number" step="0.01" id="p_valor" value="${esc(e.valor)}"></div>
   <div><label>Cobrar (dias após o atendimento) *</label><input type="number" id="p_off" placeholder="0 = no mesmo dia" value="${e.off==null?'0':e.off}"></div></div>
   <div id="perr" style="color:var(--bad);font-weight:600;margin-top:8px"></div>
   <div class="btns"><button class="pri" data-a="savepat">Salvar</button>${editId?'<button data-a="cancelpat">Cancelar</button>':''}</div></div>
   <section class="zona z-lista"><h2>Lista de Pacientes (${S.patients.length})</h2>
   ${S.patients.map(p=>`<div class="card"><div class="top"><b>${esc(p.nome)}</b><span class="mut">${esc(p.sexo)} · ${age(p.nasc)}</span></div>
-  <div class="mut">Responsável: ${p.mesmo?'o próprio paciente':esc(p.resp)} · CPF paciente ${esc(p.cpfpac||'não informado')} · CPF resp. ${esc(p.cpf||'não informado')} · ${esc(p.tel||'sem WhatsApp')} · ${brl(p.valor)} · cobrança ${p.off||0} dia(s) após</div>
+  <div class="mut">Responsável: ${p.mesmo?'o próprio paciente':esc(p.resp)} · CPF paciente ${esc(p.cpfpac||'não informado')} · CPF resp. ${esc(p.cpf||'não informado')} · ${esc(p.tel||'sem WhatsApp')} · ${brl(p.valor)} · ${esc(p.forma||'forma de pagamento não informada')} · cobrança ${p.off||0} dia(s) após</div>
   <div class="btns"><button data-a="editpat" data-id="${p.id}">Editar</button><button data-a="delpat" data-id="${p.id}">Excluir</button></div></div>`).join('')}</section>`;
 }
 function vRel(){
@@ -386,11 +405,11 @@ document.addEventListener('click',e=>{
   if(a.startsWith('del')){const k=a+id;if(armed!==k){armed=k;b.textContent='Confirmar?';return}armed=''}
   if(a==='tab'){tab=id;editId=null;prefill=null}
   else if(a==='enviada'&&s){s.env=today();save()}
-  else if(a==='pago'&&s){s.pago=today();save()}
+  else if(a==='pago'&&s){s.pago=today();const pp=pat(s.pid);if(pp&&pp.forma)s.forma=pp.forma;save()}
   else if(a==='unpago'&&s){delete s.pago;save()}
   else if(a==='migrar'&&legacy){const ip=new Set(S.patients.map(x=>x.id)),is=new Set(S.sessions.map(x=>x.id));(legacy.patients||[]).forEach(x=>{if(!ip.has(x.id))S.patients.push(x)});(legacy.sessions||[]).forEach(x=>{if(!is.has(x.id))S.sessions.push(x)});if(legacy.tpl&&S.tpl===DEF)S.tpl=legacy.tpl;save();toast('Dados deste navegador copiados para o banco de dados.')}
   else if(a==='delenv'&&s){delete s.env;save()}
-  else if(a==='delpg'&&s){delete s.pago;save()}
+  else if(a==='delpg'&&s){delete s.pago;delete s.forma;save()}
   else if(a==='delses'){S.sessions=S.sessions.filter(x=>x.id!==id);save()}
   else if(a==='delpat'){S.patients=S.patients.filter(x=>x.id!==id);S.sessions=S.sessions.filter(x=>x.pid!==id);save()}
   else if(a==='editpat'){editId=id}
@@ -408,6 +427,7 @@ document.addEventListener('click',e=>{
     if(!mesmo)chk('p_cpf','CPF válido do responsável financeiro',cpfOk(g('p_cpf')));
     const ph=g('p_tel').replace(/\D/g,'').replace(/^0+/,'');
     chk('p_tel','WhatsApp com DDD (10 ou 11 dígitos)',ph.length===10||ph.length===11||(ph.length>=12&&ph.length<=13&&ph.startsWith('55')));
+    chk('p_forma','forma de pagamento',!!g('p_forma'));
     chk('p_valor','valor da sessão maior que zero',parseFloat(g('p_valor'))>0);
     chk('p_off','dias para a cobrança',g('p_off')!==''&&!isNaN(parseInt(g('p_off'))));
     const outros=S.patients.filter(x=>x.id!==editId),dup=[];
@@ -418,7 +438,7 @@ document.addEventListener('click',e=>{
       if(dup.length)msg.push('Cadastro já existe: '+dup.join('; ')+'.');
       if(falta.length)msg.push('Preencha corretamente: '+falta.join('; ')+'.');
       const el=$('#perr');el.textContent=msg.join(' ');el.scrollIntoView({block:'center'});return}
-    const o={id:editId||uid(),nome:g('p_nome'),nasc:g('p_nasc'),sexo:g('p_sexo'),mesmo,resp:mesmo?'':g('p_resp'),tel:g('p_tel'),cpf:fmtCpf(mesmo?g('p_cpfpac'):g('p_cpf')),cpfpac:fmtCpf(g('p_cpfpac')),valor:parseFloat(g('p_valor')),off:parseInt(g('p_off'))};
+    const o={id:editId||uid(),nome:g('p_nome'),nasc:g('p_nasc'),sexo:g('p_sexo'),mesmo,resp:mesmo?'':g('p_resp'),tel:g('p_tel'),forma:g('p_forma'),cpf:fmtCpf(mesmo?g('p_cpfpac'):g('p_cpf')),cpfpac:fmtCpf(g('p_cpfpac')),valor:parseFloat(g('p_valor')),off:parseInt(g('p_off'))};
     if(editId)S.patients=S.patients.map(x=>x.id===editId?o:x);else S.patients.push(o);
     editId=null;save()}
   else if(a==='addses'){
