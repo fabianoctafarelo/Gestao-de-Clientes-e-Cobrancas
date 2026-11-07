@@ -142,7 +142,7 @@ const resp=p=>p.mesmo?p.nome:(p.resp||p.nome);
 const fmtCpf=s=>String(s||'').replace(/\D/g,'').slice(0,11).replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d{1,2})$/,'$1-$2');
 const cpfOk=s=>{const d=String(s).replace(/\D/g,'');if(d.length!==11||/^(\d)\1+$/.test(d))return false;for(const n of [9,10]){let t=0;for(let i=0;i<n;i++)t+=d[i]*(n+1-i);if((t*10)%11%10!==+d[n])return false}return true};
 const val=id=>{const e=document.getElementById(id);return e?e.value:''};
-let ano=null,qBusca='';
+let ano=null,qBusca='',cobPid='';
 let tab='cob',editId=null,armed='',legacy=null,viewId=null,justSaved=0,lastId=null,picking=false,pend=null,recId=null,rec=null,lastBlob=null,rmsg='';
 const fmtDur=n=>Math.floor(n/60)+':'+String(n%60).padStart(2,'0');
 const setMsg=t=>{rmsg=t;const e=document.getElementById('rmsg');if(e){e.textContent=t;if(t)e.scrollIntoView({block:'nearest'})}};
@@ -181,16 +181,18 @@ function row(s){
   <div class="btns">${s.pago?'':waBtn(s,w)}${bEnv}${bPg}${s.pago?'':`<input type="date" value="${s.cob}" data-a="cobchg" data-id="${s.id}" title="Data da cobrança">`}</div>${w&&!s.pago?`<details><summary class="mut">Ver número e mensagem</summary><div class="mut">Para: ${w.ok?'+'+w.ph:'(sem número válido)'}<br>${esc(w.msg)}</div></details>`:''}</div>`;
 }
 function vCob(){
-  const t=today(),m=t.slice(0,7),open=S.sessions.filter(s=>!s.pago).sort((a,b)=>a.cob.localeCompare(b.cob));
+  if(cobPid&&!pat(cobPid))cobPid='';
+  const t=today(),m=t.slice(0,7),base=cobPid?S.sessions.filter(s=>s.pid===cobPid):S.sessions,open=base.filter(s=>!s.pago).sort((a,b)=>a.cob.localeCompare(b.cob));
   const due=open.filter(s=>!s.env&&s.cob<=t),wait=open.filter(s=>!s.env&&s.cob>t),sent=open.filter(s=>s.env);
   const sum=a=>a.reduce((x,s)=>x+Number(s.valor||0),0);
-  const rec=S.sessions.filter(s=>s.pago&&s.pago.slice(0,7)===m);
-  const paid=S.sessions.filter(s=>s.pago).sort((a,b)=>b.pago.localeCompare(a.pago)).slice(0,30);
+  const rec=base.filter(s=>s.pago&&s.pago.slice(0,7)===m);
+  const paid=base.filter(s=>s.pago).sort((a,b)=>b.pago.localeCompare(a.pago)).slice(0,30);
   const blk=(n,cls,h,sub,a,e)=>`<section class="stage ${cls}">
     <div class="stage-h"><span class="stage-n">${n}</span><div class="stage-t">${h}<small>${sub}</small></div>
     <div class="stage-v">${brl(sum(a))}<small>${a.length} ${a.length===1?'item':'itens'}</small></div></div>
     ${a.length?a.map(row).join(''):`<div class="mut">${e}</div>`}</section>`;
-  return `<div class="sum"><div><span class="mut">A receber</span><b>${brl(sum(open))}</b></div><div><span class="mut">Recebido no mês</span><b>${brl(sum(rec))}</b></div></div>
+  const filtro=`<div class="card"><label for="cobf" style="margin-top:0">Filtrar por paciente</label><select id="cobf" data-a="cobf"><option value="">Todos os pacientes</option>${S.patients.filter(x=>x.id===cobPid||S.sessions.some(z=>z.pid===x.id)).map(x=>`<option value="${x.id}"${x.id===cobPid?' selected':''}>${esc(x.nome)}</option>`).join('')}</select>${cobPid?`<div class="mut" style="margin-top:6px">Mostrando só as cobranças de <b>${esc(pat(cobPid).nome)}</b>, em todas as etapas. Os totais abaixo também são deste paciente. Para voltar, escolha “Todos os pacientes”.</div>`:''}</div>`;
+  return `${filtro}<div class="sum"><div><span class="mut">A receber</span><b>${brl(sum(open))}</b></div><div><span class="mut">Recebido no mês</span><b>${brl(sum(rec))}</b></div></div>
   ${blk(1,'s1','Enviar cobrança agora','Vencidas ou com vencimento hoje: envie pelo WhatsApp',due,'Nenhuma cobrança para enviar hoje.')}
   ${blk(2,'s2','Enviadas, aguardando pagamento','Cobrança enviada: falta confirmar o pagamento',sent,'Nada em aberto.')}
   ${blk(3,'s3','Cobranças agendadas','Ainda não chegou a data de envio',wait,'Nenhuma cobrança agendada.')}
@@ -499,6 +501,7 @@ document.addEventListener('change',e=>{
   const t=e.target,a=t.dataset&&t.dataset.a;if(!a)return;
   if(a==='cobchg'){const s=S.sessions.find(x=>x.id===t.dataset.id);if(s&&t.value){s.cob=t.value;save();render()}}
   else if(a==='ano'){ano=t.value;render()}
+  else if(a==='cobf'){cobPid=t.value;render()}
   else if(a==='agdate'){if(t.value){agDate=t.value;render()}}
   else if(a==='horachg'){const s=S.sessions.find(x=>x.id===t.dataset.id);if(s){if(t.value)s.hora=t.value;else delete s.hora;save();render()}}
   else if(a==='a_pid'){const p=pat(t.value);if(p){$('#a_valor').value=p.valor||'';$('#a_off').value=p.off||0}else{$('#a_valor').value='';$('#a_off').value=0}}
